@@ -38,6 +38,7 @@ export default defineConfig({
             }
         })
     ],
+    base: '/massas-sao-jose-front/',
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),
