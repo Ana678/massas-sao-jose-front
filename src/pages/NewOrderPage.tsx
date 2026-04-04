@@ -1,30 +1,59 @@
 import { useState, useMemo } from "react";
-import { Check, ChevronDown, X, Sparkles } from "lucide-react";
+import { Check, ChevronDown, X, Sparkles, Calendar, Search } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProductGrid from "@/components/ProductGrid";
 import PaymentSelector from "@/components/PaymentSelector";
 import {
     getProducts, getClients, getOrders, saveOrders, generateId,
     formatCurrency, type Order, type OrderItem, type Client,
+    DELIVERY_ROUTES, type DayOfWeek,
 } from "@/lib/data";
+import { useSearch } from "@tanstack/react-router";
+
 
 export default function NewOrderPage() {
+
+    const { dia } = useSearch({ from: '/_authenticated/order/new' });
+    const dayParam = dia as DayOfWeek | null;
+
     const [products] = useState(getProducts());
     const [clients] = useState(getClients());
     const [selectedClient, setSelectedClient] = useState("");
     const [cart, setCart] = useState<Record<string, number>>({});
     const [payment, setPayment] = useState<"pix" | "cartao" | "dinheiro">("dinheiro");
-    const [isPreOrder, setIsPreOrder] = useState(false);
     const [showClientPicker, setShowClientPicker] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterCity, setFilterCity] = useState<string>(
+        dayParam ? "" : ""
+    );
+    // Cities relevant to the day param
+    const dayCities = dayParam ? (DELIVERY_ROUTES[dayParam] || []) : [];
 
     const selectedClientData = useMemo(
         () => clients.find((c) => c.id === selectedClient),
         [clients, selectedClient]
     );
+    const filteredClients = useMemo(() => {
+        let list = clients;
+        if (filterCity) {
+            list = list.filter(c => c.cidade === filterCity);
+        }
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            list = list.filter(c => c.name.toLowerCase().includes(q) || c.cidade.toLowerCase().includes(q));
+        }
+        return list;
+    }, [clients, filterCity, searchQuery]);
 
+    // Unique cities from clients
+    const availableCities = useMemo(() => {
+        const set = new Set(clients.map(c => c.cidade));
+        return Array.from(set).sort();
+    }, [clients]);
     function selectClient(client: Client) {
         setSelectedClient(client.id);
         setShowClientPicker(false);
+        setSearchQuery("");
     }
 
     function loadPredictiveOrder(client: Client) {
@@ -56,8 +85,6 @@ export default function NewOrderPage() {
 
     function submit() {
 
-        setIsPreOrder(false); // for now
-
         if (!selectedClient || items.length === 0) return;
         const client = clients.find((c) => c.id === selectedClient)!;
         const order: Order = {
@@ -67,9 +94,9 @@ export default function NewOrderPage() {
             items,
             total,
             paymentMethod: payment,
-            status: isPreOrder ? "preparando" : "concluido",
+            status: "preparando",
             createdAt: new Date().toISOString(),
-            isPreOrder,
+            isPreOrder: true,
         };
         const all = [...getOrders(), order];
         saveOrders(all);
@@ -78,7 +105,15 @@ export default function NewOrderPage() {
     return (
         <div className="flex flex-col h-full min-h-screen pb-44">
             <PageHeader title="Novo Pedido" backTo="/" />
-
+            {dayParam && (
+                <section className="px-4 pb-2">
+                    <div className="bg-primary/10 border border-primary/20 rounded-xl px-4 py-2 text-xs text-primary">
+                        <Calendar />
+                        Pedido para rota de <span className="font-medium capitalize">{dayParam}</span>
+                        {dayCities.length > 0 && ` — ${dayCities.join(', ')}`}
+                    </div>
+                </section>
+            )}
             {/* Client selector */}
             <section className="px-4 pb-3">
                 <button
@@ -153,7 +188,8 @@ export default function NewOrderPage() {
                             className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 flex items-center justify-center gap-2 font-normal disabled:opacity-40 transition-transform active:scale-[0.98]"
                         >
                             <Check className="w-5 h-5" />
-                            {isPreOrder ? "Salvar Previsão" : "Confirmar Pedido"}
+                            Confirmar Pedido
+                            {/*isPreOrder ? "Salvar Previsão" : "Confirmar Pedido"*/}
                         </button>
                     </div>
                 </div>
@@ -161,16 +197,56 @@ export default function NewOrderPage() {
 
             {/* Client picker modal */}
             {showClientPicker && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center">
-                    <div className="w-full max-w-md bg-background rounded-t-2xl max-h-[70vh] flex flex-col">
+                <div className="fixed inset-0 bg-black/50 z-60 flex items-end justify-center">
+                    <div className="w-full max-w-md bg-background rounded-t-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                             <h3 className="font-display text-lg">Selecionar Cliente</h3>
-                            <button onClick={() => setShowClientPicker(false)}>
+                            <button onClick={() => { setShowClientPicker(false); setSearchQuery(""); setFilterCity(""); }}>
                                 <X className="w-5 h-5 text-muted-foreground" />
                             </button>
                         </div>
+
+                        {/* Search */}
+                        <div className="px-4 pt-3 pb-2">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nome..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        {/* City filter */}
+                        <div className="px-4 pb-2 flex gap-1.5 overflow-x-auto no-scrollbar">
+                            <button
+                                onClick={() => setFilterCity("")}
+                                className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-normal border transition-colors ${!filterCity ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"
+                                    }`}
+                            >
+                                Todas
+                            </button>
+                            {(dayParam ? dayCities : availableCities).map(city => (
+                                <button
+                                    key={city}
+                                    onClick={() => setFilterCity(filterCity === city ? "" : city)}
+                                    className={`shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-normal border transition-colors ${filterCity === city ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"
+                                        }`}
+                                >
+                                    {city}
+                                </button>
+                            ))}
+                        </div>
+
                         <div className="overflow-y-auto flex-1 py-2">
-                            {clients.map((c) => (
+                            {filteredClients.length === 0 && (
+                                <p className="text-muted-foreground text-sm text-center py-6">Nenhum cliente encontrado</p>
+                            )}
+                            {filteredClients.map((c) => (
                                 <button
                                     key={c.id}
                                     onClick={() => selectClient(c)}

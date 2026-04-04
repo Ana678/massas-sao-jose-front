@@ -3,7 +3,7 @@
 import ClientsPage from '@/pages/ClientsPage'
 import { Outlet, useRouterState, createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/clients')({
+export const Route = createFileRoute('/_authenticated/clients')({
     component: ClientsComponent,
 });
 

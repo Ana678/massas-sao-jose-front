@@ -2,7 +2,7 @@ import OrdersPage from '@/pages/OrdersPage'
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import { Outlet } from 'react-router-dom';
 
-export const Route = createFileRoute('/orders')({
+export const Route = createFileRoute('/_authenticated/orders')({
     component: RouteComponent,
 })
 

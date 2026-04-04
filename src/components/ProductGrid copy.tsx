@@ -10,7 +10,7 @@ interface ProductGridProps {
     onSetQty?: (productId: string, qty: number) => void;
 }
 
-export default function ProductGri({ products, quantities, onTap, onAdjust, onSetQty }: ProductGridProps) {
+export default function ProductGrid({ products, quantities, onTap, onAdjust, onSetQty }: ProductGridProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
 
@@ -29,7 +29,6 @@ export default function ProductGri({ products, quantities, onTap, onAdjust, onSe
             onAdjust(pid, newQty - currentQty);
         }
         setEditingId(null);
-
     }
 
     return (
@@ -41,7 +40,7 @@ export default function ProductGri({ products, quantities, onTap, onAdjust, onSe
                     <div key={p.id} className="relative">
                         <button
                             onClick={() => onTap(p.id)}
-                            className={`w-full h-full bg-card rounded-xl p-3 border transition-all active:scale-95 flex flex-col items-center gap-1.5 min-h-[90px] justify-center ${qty > 0 ? "border-primary shadow-sm" : "border-border"
+                            className={`w-full bg-card rounded-xl p-3 border transition-all active:scale-95 flex flex-col items-center gap-1.5 min-h-[90px] justify-center ${qty > 0 ? "border-primary shadow-sm" : "border-border"
                                 }`}
                         >
                             <span className="text-2xl">{p.icon}</span>
@@ -49,12 +48,12 @@ export default function ProductGri({ products, quantities, onTap, onAdjust, onSe
                             <span className="text-primary text-[10px]">{formatCurrency(p.sellPrice)}</span>
                         </button>
                         {qty > 0 && (
-                            <div className="absolute -top-2.5 right-1.5 flex items-center gap-2">
+                            <div className="absolute -top-1.5 -right-1.5 flex items-center gap-0.5">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onAdjust(p.id, -1); }}
-                                    className="w-6 h-6 rounded-full bg-destructive text-accent-foreground flex items-center justify-center shadow-sm"
+                                    className="w-5 h-5 rounded-full bg-accent text-accent-foreground flex items-center justify-center shadow-sm"
                                 >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3" />
                                 </button>
                                 {isEditing ? (
                                     <input

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { CheckCircle, Cloud, FileText, Download, Calendar, X, Plus, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, CheckCircle, Cloud, FileText, Download, Calendar, X, RotateCcw } from "lucide-react";
 import ItemBreakdown from "@/components/ItemBreakdown";
 import QtyAdjuster from "@/components/QtyAdjuster";
 import AddressLink from "@/components/AddressLink";
@@ -8,41 +9,31 @@ import {
     getClients, getProducts, getOrders, saveOrders, generateId, getTodayRoute,
     getTodayDayName, formatCurrency, clientNeedsInvoice, getRouteOverrides, saveRouteOverrides,
     getSkippedClients, toggleSkipClient,
-    ALL_CITIES, type Client, type Order, type Product
+    ALL_CITIES, type Client, type Order, type Product,
 } from "@/lib/data";
 import { toast } from "sonner";
-import LogoImg from "@/assets/logo.svg";
-import { Link } from '@tanstack/react-router';
 
-export default function RoutesPage() {
+export default function RotaPage() {
+    const navigate = useNavigate();
+    const [clients, setClients] = useState<Client[]>([]);
     const [products] = useState(getProducts());
     const [orders, setOrders] = useState<Order[]>(getOrders());
     const [delivered, setDelivered] = useState<Record<string, boolean>>({});
-    const [quantities, setQuantities] = useState<Record<string, Record<string, number>>>(() => {
-
-        const all = getClients();
-        const initialRoute = getTodayRoute();
-        const routeClients = all.filter((c) => initialRoute.includes(c.cidade));
-        const q: Record<string, Record<string, number>> = {};
-        routeClients.forEach((c) => {
-            if (c.averageOrder) q[c.id] = { ...c.averageOrder };
-        });
-        return q;
-    });
+    const [quantities, setQuantities] = useState<Record<string, Record<string, number>>>({});
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [overrideDate, setOverrideDate] = useState("");
     const [overrideCities, setOverrideCities] = useState<string[]>([]);
     const [overrideReason, setOverrideReason] = useState("");
     const [skipped, setSkipped] = useState(getSkippedClients());
     const todayRoute = getTodayRoute();
-    const allClients = getClients();
-    const clients = allClients.filter((c) => todayRoute.includes(c.cidade));
-
     const todayCities = todayRoute.join(", ");
+
+    // Check for active override
     const todayStr = new Date().toISOString().slice(0, 10);
     const overrides = getRouteOverrides();
     const hasOverride = overrides.some((o) => o.date === todayStr);
 
+    // Determine day key for skipping (use today's date)
     const skipKey = todayStr;
     const skippedIds = skipped[skipKey] || [];
 
@@ -58,13 +49,21 @@ export default function RoutesPage() {
         toast.success("Cliente restaurado na rota");
     }
 
-    const todayOrders = orders.filter((o) => o.createdAt.startsWith(todayStr));
-    const todayRevenue = todayOrders
-        .filter((o) => o.status === "concluido")
-        .reduce((s, o) => s + o.total, 0);
+    useEffect(() => {
+        const all = getClients();
+        const routeClients = all.filter((c) => todayRoute.includes(c.cidade));
+        setClients(routeClients);
+        const q: Record<string, Record<string, number>> = {};
+        routeClients.forEach((c) => {
+            if (c.averageOrder) q[c.id] = { ...c.averageOrder };
+        });
+        setQuantities(q);
+    }, []);
 
-    const pending = clients.filter((c) => !delivered[c.id]);
-    const done = clients.filter((c) => delivered[c.id]);
+    const todayOrders = orders.filter(
+        (o) => o.createdAt.startsWith(todayStr)
+    );
+    const todayRevenue = todayOrders.filter((o) => o.status === "concluido").reduce((s, o) => s + o.total, 0);
 
     function adjustQty(clientId: string, productId: string, delta: number) {
         setQuantities((prev) => {
@@ -121,19 +120,18 @@ export default function RoutesPage() {
             prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
         );
     }
+
     const activeClients = clients.filter(c => !skippedIds.includes(c.id));
     const skippedClientsList = clients.filter(c => skippedIds.includes(c.id));
+    const pending = activeClients.filter((c) => !delivered[c.id]);
+    const done = activeClients.filter((c) => delivered[c.id]);
 
     return (
         <>
             {/* Header */}
             <header className="flex justify-between items-start px-6 pt-8 pb-4">
                 <div className="font-display leading-[1.1] tracking-tighter text-xl">
-                    <img
-                        src={LogoImg}
-                        alt="Logo da minha aplicação"
-                        className="h-10 w-auto"
-                    />
+                    Massas<br />São José
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -153,9 +151,7 @@ export default function RoutesPage() {
             {/* Greeting */}
             <section className="px-6 pt-2 pb-4">
                 <h1 className="font-display text-3xl tracking-tight leading-tight">
-                    {getTodayDayName()}, <br />
-                    <span className="text-base">rota para </span>
-                    <span className="italic text-base">{todayCities}.</span>
+                    {getTodayDayName()},<br />rota para <span className="italic">{todayCities}.</span>
                 </h1>
                 {hasOverride && (
                     <p className="text-accent text-xs mt-1">⚠️ Rota alterada para hoje</p>
@@ -175,7 +171,7 @@ export default function RoutesPage() {
                         <div className="w-px h-8 bg-border"></div>
                         <div className="text-right">
                             <p className="text-muted-foreground text-xs mb-1 tracking-wide">Visitas</p>
-                            <p className="text-foreground text-sm font-normal">{done.length}/{clients.length}</p>
+                            <p className="text-foreground text-sm font-normal">{done.length}/{activeClients.length}</p>
                         </div>
                     </div>
                 </div>
@@ -183,17 +179,13 @@ export default function RoutesPage() {
 
             {/* Quick sale */}
             <section className="px-6 py-4">
-                <Link
-                    to="/order/new"
+                <button
+                    onClick={() => navigate("/pedido/novo")}
+                    className="w-full bg-accent text-accent-foreground rounded-2xl p-4 flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-sm"
                 >
-                    <button
-                        className="w-full bg-accent text-accent-foreground rounded-2xl p-4 flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-sm"
-                    >
-                        <Plus className="w-6 h-6" />
-                        <span className="text-base tracking-wide font-normal">Realizar Venda</span>
-                    </button>
-
-                </Link>
+                    <Plus className="w-6 h-6" />
+                    <span className="text-base tracking-wide font-normal">Venda Avulsa na Rua</span>
+                </button>
             </section>
 
             {/* Route */}
@@ -212,9 +204,9 @@ export default function RoutesPage() {
                             <div key={client.id} className="bg-card rounded-xl p-4 flex flex-col gap-3 border border-border animate-slide-up">
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                        <div className="w-2 h-2 rounded-full bg-accent shrink-0"></div>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-accent shrink-0"></div>
                                                 <p className="text-foreground text-sm font-medium truncate">{client.name}</p>
                                                 {hasNF && (
                                                     <span className="text-[9px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium shrink-0">
@@ -300,6 +292,7 @@ export default function RoutesPage() {
                             </div>
                         );
                     })}
+
                     {/* Skipped clients */}
                     {skippedClientsList.length > 0 && (
                         <div className="mt-4">

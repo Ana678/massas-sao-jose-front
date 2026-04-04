@@ -1,7 +1,7 @@
 import ClientDetailPage from '@/pages/ClientDetailPage';
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/clients/$id')({
+export const Route = createFileRoute('/_authenticated/clients/$id')({
     component: RouteComponent,
 })
 

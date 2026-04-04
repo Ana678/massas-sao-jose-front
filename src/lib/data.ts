@@ -131,8 +131,33 @@ const STORAGE_KEYS = {
     orders: 'msj_orders',
     expenses: 'msj_expenses',
     routeOverrides: 'msj_route_overrides',
+    skippedClients: 'msj_skipped_clients',
     version: 'msj_version',
 };
+
+// Skipped clients: Record<dayKey, clientId[]> where dayKey = DayOfWeek or YYYY-MM-DD
+export function getSkippedClients(): Record<string, string[]> {
+    try {
+        const data = localStorage.getItem(STORAGE_KEYS.skippedClients);
+        return data ? JSON.parse(data) : {};
+    } catch { return {}; }
+}
+
+export function saveSkippedClients(s: Record<string, string[]>) {
+    localStorage.setItem(STORAGE_KEYS.skippedClients, JSON.stringify(s));
+}
+
+export function toggleSkipClient(dayKey: string, clientId: string) {
+    const all = getSkippedClients();
+    const list = all[dayKey] || [];
+    if (list.includes(clientId)) {
+        all[dayKey] = list.filter(id => id !== clientId);
+    } else {
+        all[dayKey] = [...list, clientId];
+    }
+    saveSkippedClients(all);
+    return all;
+}
 
 // Clear old data on version change
 if (typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.version) !== DATA_VERSION) {
@@ -195,4 +220,3 @@ export function formatCurrency(v: number) {
 export function clientNeedsInvoice(client: Client): boolean {
     return client.needsInvoice || !!(client.razaoSocial && client.cpfCnpj?.includes("/"));
 }
-
