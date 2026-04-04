@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 const VALID_EMAIL = "admin";
 const VALID_PASSWORD = "massas@saojose";

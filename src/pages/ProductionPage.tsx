@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getClients, getProducts, saveClients, type Client, DELIVERY_ROUTES, type DayOfWeek, getSkippedClients, toggleSkipClient, type Product } from "@/lib/data";
+import { getClients, getProducts, saveClients, type Client, DELIVERY_ROUTES, type DayOfWeek, getSkippedClients, toggleSkipClient } from "@/lib/data";
 import PageHeader from "@/components/PageHeader";
 import DaySelector from "@/components/DaySelector";
 import QtyAdjuster from "@/components/QtyAdjuster";

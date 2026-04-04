@@ -15,8 +15,8 @@ type AppShellProps = {
 
 export default function AppShell({ children }: AppShellProps) {
     const pathname = useRouterState({ select: (state) => state.location.pathname });
-    const isCaixaPage = pathname === "/caixa";
-    const isNovoPedido = pathname === "/pedido/novo";
+    const isCaixaPage = pathname === "/wallet";
+    const isNovoPedido = pathname === "/order/new";
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-app-bg p-0 md:p-4">
@@ -42,7 +42,8 @@ export default function AppShell({ children }: AppShellProps) {
                                 {/* Novo Pedido button after Produção (index 1) */}
                                 {index === 1 && !isCaixaPage && !isNovoPedido && (
                                     <Link
-                                        to="/order/new">
+                                        to="/order/new"
+                                        search={{ dia: undefined }}>
                                         <button
                                             className="flex flex-col items-center gap-1 -mt-7 transition-transform active:scale-95"
                                         >

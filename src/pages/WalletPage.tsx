@@ -72,7 +72,8 @@ export default function WalletPage() {
                 </Link>
 
                 <Link
-                    to="/orders">
+                    to="/orders"
+                >
                     <button
                         className="w-full mb-3 bg-card text-foreground rounded-2xl p-4 flex items-center justify-between border border-border transition-transform active:scale-[0.98]"
                     >

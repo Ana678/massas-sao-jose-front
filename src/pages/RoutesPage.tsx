@@ -8,7 +8,7 @@ import {
     getClients, getProducts, getOrders, saveOrders, generateId, getTodayRoute,
     getTodayDayName, formatCurrency, clientNeedsInvoice, getRouteOverrides, saveRouteOverrides,
     getSkippedClients, toggleSkipClient,
-    ALL_CITIES, type Client, type Order, type Product
+    ALL_CITIES, type Client, type Order
 } from "@/lib/data";
 import { toast } from "sonner";
 import LogoImg from "@/assets/logo.svg";
@@ -121,7 +121,6 @@ export default function RoutesPage() {
             prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
         );
     }
-    const activeClients = clients.filter(c => !skippedIds.includes(c.id));
     const skippedClientsList = clients.filter(c => skippedIds.includes(c.id));
 
     return (
@@ -185,6 +184,7 @@ export default function RoutesPage() {
             <section className="px-6 py-4">
                 <Link
                     to="/order/new"
+                    search={{ dia: undefined }}
                 >
                     <button
                         className="w-full bg-accent text-accent-foreground rounded-2xl p-4 flex items-center justify-center gap-3 transition-transform active:scale-[0.98] shadow-sm"

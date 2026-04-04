@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus } from "lucide-react";
 import { formatCurrency, type Product } from "@/lib/data";
 
 interface ProductGridProps {
