@@ -25,6 +25,7 @@ export default function ClientsPage() {
                 rightAction={
                     <Link
                         to="/clients/new"
+                        search={{ dia: undefined }}
                     >
                         <button
                             className="bg-primary text-primary-foreground p-2 rounded-xl"
