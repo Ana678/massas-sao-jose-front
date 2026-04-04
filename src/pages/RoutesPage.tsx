@@ -202,7 +202,6 @@ export default function RoutesPage() {
                     <h2 className="font-display text-lg tracking-tight">Rota de Hoje</h2>
                     <span className="text-muted-foreground text-xs">{pending.length} visitas restantes</span>
                 </div>
-
                 <div className="space-y-3">
                     {pending.map((client) => {
                         const clientQty = quantities[client.id] || {};
