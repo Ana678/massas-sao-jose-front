@@ -36,11 +36,11 @@ const LoginPage = () => {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-[#121212] p-0 md:p-4">
-            <main className="relative flex min-h-screen w-full max-w-md flex-col justify-center overflow-y-auto bg-[#F2EDE4] px-8 shadow-2xl md:min-h-[850px] md:rounded-[2rem]">
+            <main className="relative flex min-h-screen w-full max-w-md flex-col justify-center overflow-y-auto bg-[#F2EDE4] px-8 shadow-2xl md:rounded-[2rem]">
 
                 <div className="h-5 w-full bg-accent absolute top-0 left-0 z-50"></div>
 
-                <div className="pointer-events-none absolute left-0 top-0 h-64 w-full bg-gradient-to-b from-[#E8E0D3] to-transparent opacity-50 md:rounded-t-[2rem]" />
+                <div className="pointer-events-none absolute left-0 top-0 h-64 w-full bg-gradient-to-b from-[#E8E0D3] to-transparent opacity-50" />
 
                 <div className="relative z-10 w-full mb-12 flex flex-col justify-center gap-3 items-center">
 

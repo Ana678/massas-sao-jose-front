@@ -5,6 +5,7 @@ import DaySelector from "@/components/DaySelector";
 import QtyAdjuster from "@/components/QtyAdjuster";
 import { Save, Plus, X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 
 export default function ProductionPage() {
     const [products] = useState(getProducts());
@@ -131,13 +132,15 @@ export default function ProductionPage() {
                     <h2 className="font-display text-lg tracking-tight">Clientes na Rota</h2>
                     <div className="flex items-center gap-2">
                         <span className="text-muted-foreground text-xs">{dayClients.length} clientes</span>
-                        <button
-                            onClick={() => console.log(`/pedido/novo?dia=${selectedDay}`)}
-                            className="bg-primary text-primary-foreground rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider font-normal flex items-center gap-1 active:scale-95 transition-transform"
-                        >
-                            <Plus className="w-3 h-3" />
-                            Pedido
-                        </button>
+                        <Link to="/order/new"
+                            search={{ dia: selectedDay }}>
+                            <button
+                                className="bg-primary text-primary-foreground rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider font-normal flex items-center gap-1 active:scale-95 transition-transform"
+                            >
+                                <Plus className="w-3 h-3" />
+                                Pedido
+                            </button>
+                        </Link>
                     </div>
                 </div>
                 <div className="space-y-3">

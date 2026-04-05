@@ -20,10 +20,10 @@ export default function AppShell({ children }: AppShellProps) {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-app-bg p-0 md:p-4">
-            <main className="w-full max-w-md bg-background min-h-screen md:min-h-[850px] relative overflow-y-auto no-scrollbar md:rounded-[2rem] shadow-2xl flex flex-col pb-24">
+            <main className="w-full max-w-md bg-background min-h-screen relative overflow-y-auto no-scrollbar md:rounded-[2rem] shadow-2xl flex flex-col pb-24">
                 {children}
 
-                <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-background border-t border-border px-4 py-3 flex justify-around items-end z-50 md:rounded-b-[2rem]">
+                <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-background border-t border-border px-4 py-4 flex justify-around items-end z-50 md:rounded-b-[2rem]">
                     {tabs.map((tab, index) => {
                         const isActive = pathname === tab.path;
                         return (
