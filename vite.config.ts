@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
-import path from 'node:path'
+import path from 'node:path';
+import svgr from 'vite-plugin-svgr';
 
 export default defineConfig({
     plugins: [
@@ -13,6 +14,7 @@ export default defineConfig({
         }),
         react(),
         tailwindcss(),
+        svgr(),
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['logo.svg'],
