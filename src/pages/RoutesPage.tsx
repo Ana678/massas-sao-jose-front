@@ -11,7 +11,7 @@ import {
     ALL_CITIES, type Client, type Order
 } from "@/lib/data";
 import { toast } from "sonner";
-import LogoImg from "@/assets/logo.svg";
+import Logo from "@/assets/logo.svg?react";
 import { Link } from '@tanstack/react-router';
 
 export default function RoutesPage() {
@@ -128,11 +128,7 @@ export default function RoutesPage() {
             {/* Header */}
             <header className="flex justify-between items-start px-6 pt-8 pb-4">
                 <div className="font-display leading-[1.1] tracking-tighter text-xl">
-                    <img
-                        src={LogoImg}
-                        alt="Logo da minha aplicação"
-                        className="h-10 w-auto"
-                    />
+                    <Logo className="h-10 w-auto object-contain" />
                 </div>
                 <div className="flex items-center gap-2">
                     <button
