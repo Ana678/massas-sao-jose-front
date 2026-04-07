@@ -22,8 +22,8 @@ export default defineConfig({
                 name: 'Massas São José',
                 short_name: 'Massas SJ',
                 description: 'Site do Massas São José',
-                theme_color: '#fdfdfd',
-                background_color: '#fdfdfd',
+                theme_color: '#f3eee7',
+                background_color: '#f3eee7',
                 display: 'standalone',
                 icons: [
                     {
