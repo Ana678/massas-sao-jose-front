@@ -1,45 +1,61 @@
 import { useState } from "react";
-import { getClients, getProducts, saveClients, type Client, DELIVERY_ROUTES, type DayOfWeek, getSkippedClients, toggleSkipClient } from "@/lib/data";
+import { DELIVERY_ROUTES, type DayOfWeek, getSkippedClients, toggleSkipClient } from "@/lib/data";
 import PageHeader from "@/components/PageHeader";
 import DaySelector from "@/components/DaySelector";
 import QtyAdjuster from "@/components/QtyAdjuster";
-import { Save, Plus, X, RotateCcw } from "lucide-react";
+import { Plus, X, RotateCcw, Cloud } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
+import { useOrdersList } from "@/lib/hooks/useOrders";
+import { useProducts } from "@/lib/hooks/useProduct";
+import { useClients } from "@/lib/hooks/useClients";
+import type { Client } from "@/lib/types";
 
 export default function ProductionPage() {
-    const [products] = useState(getProducts());
-    const [clients, setClients] = useState(getClients());
-    const [selectedDay, setSelectedDay] = useState<DayOfWeek>("quinta");
+
+
+    const { data: products = [], isLoading: loadingProducts } = useProducts();
+    const { data: clients = [], isLoading: loadingClients } = useClients();
+    const { data: orders = [], isLoading: loadingOrders } = useOrdersList();
+
+    const getToday = new Date().toLocaleDateString("pt-BR", { weekday: "long" }).replace("-feira", "") as DayOfWeek;
+
+    const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getToday in DELIVERY_ROUTES ? getToday : "segunda");
     const [editedOrders, setEditedOrders] = useState<Record<string, Record<string, number>>>({});
     const [skipped, setSkipped] = useState(getSkippedClients());
 
     const cities = DELIVERY_ROUTES[selectedDay] || [];
-    const allDayClients = clients.filter((c) => cities.includes(c.cidade));
+    const allDayClients = clients.filter((c) => cities.includes(c.city));
     const skippedIds = skipped[selectedDay] || [];
+
     const dayClients = allDayClients.filter(c => !skippedIds.includes(c.id));
     const skippedClients = allDayClients.filter(c => skippedIds.includes(c.id));
 
-    function handleSkip(clientId: string) {
-        const updated = toggleSkipClient(selectedDay, clientId);
-        setSkipped({ ...updated });
-        toast.success("Cliente removido da rota de hoje");
-    }
+    // Get the last order
+    const getBaselineOrder = (client: Client) => {
+        const clientOrders = orders
+            .filter(o => o.clientName === client.name && o.enabled)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    function handleRestore(clientId: string) {
+        const lastOrder = clientOrders[0];
+        const base: Record<string, number> = {};
 
-        const updated = toggleSkipClient(selectedDay, clientId);
-        setSkipped({ ...updated });
-        toast.success("Cliente restaurado na rota");
-    }
+        if (lastOrder) {
+            lastOrder.products.forEach(p => {
+                base[p.id] = p.quantity; // API usa 'quantity'
+            });
+        }
+        return base;
+    };
+
     function getClientOrder(client: Client): Record<string, number> {
         if (editedOrders[client.id]) return editedOrders[client.id];
-        return client.averageOrder || {};
+        return getBaselineOrder(client);
     }
 
     const forecast: Record<string, number> = {};
-    dayClients.forEach((c) => {
-        const order = getClientOrder(c);
+    dayClients.forEach((client) => {
+        const order = getClientOrder(client);
         Object.entries(order).forEach(([pid, qty]) => {
             forecast[pid] = (forecast[pid] || 0) + qty;
         });
@@ -47,10 +63,23 @@ export default function ProductionPage() {
 
     const totalUnits = Object.values(forecast).reduce((s, v) => s + v, 0);
 
+
+    function handleSkip(clientId: string) {
+        const updated = toggleSkipClient(selectedDay, clientId);
+        setSkipped({ ...updated });
+        toast.success("Cliente removido da previsão");
+    }
+
+    function handleRestore(clientId: string) {
+        const updated = toggleSkipClient(selectedDay, clientId);
+        setSkipped({ ...updated });
+        toast.success("Cliente restaurado na previsão");
+    }
+
     function adjustQty(clientId: string, productId: string, delta: number) {
         setEditedOrders((prev) => {
-            const client = clients.find((c) => c.id === clientId);
-            const current = prev[clientId] || client?.averageOrder || {};
+            const client = clients.find((c) => c.id === clientId)!;
+            const current = prev[clientId] || getBaselineOrder(client);
             const newQty = Math.max(0, (current[productId] || 0) + delta);
             const updated = { ...current, [productId]: newQty };
             if (updated[productId] === 0) delete updated[productId];
@@ -58,25 +87,19 @@ export default function ProductionPage() {
         });
     }
 
-    function saveAllEdits() {
-        const updatedClients = clients.map((c) => {
-            if (editedOrders[c.id]) {
-                return { ...c, averageOrder: editedOrders[c.id] };
-            }
-            return c;
-        });
-        saveClients(updatedClients);
-        setClients(updatedClients);
-        setEditedOrders({});
-        toast.success("Médias de pedidos atualizadas!");
+    const isLoading = loadingProducts || loadingClients || loadingOrders;
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
+                <Cloud className="w-8 h-8 animate-pulse text-primary" />
+                <p>Calculando previsão de produção...</p>
+            </div>
+        );
     }
 
-    const hasEdits = Object.keys(editedOrders).length > 0;
-
-
-
     return (
-        <>
+        <div className="pb-24">
             <PageHeader title="Produção" subtitle="Previsão de demanda por dia" />
 
             <section className="px-6 pb-4">
@@ -85,39 +108,34 @@ export default function ProductionPage() {
 
             {/* Summary */}
             <section className="px-6 py-2">
-                <div className="border border-border bg-card/60 rounded-xl p-3 flex items-center justify-between">
-                    <p className="text-foreground text-xs">
-                        Previsão: <span className="font-medium">~{totalUnits} unidades</span>
+                <div className="border border-border bg-card/60 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                    <p className="text-foreground text-sm">
+                        Total a Produzir: <span className="font-bold text-primary text-base ml-1">~{totalUnits} un.</span>
                     </p>
-                    <div className="flex items-center gap-2">
-                        {hasEdits && (
-                            <button
-                                onClick={saveAllEdits}
-                                className="text-primary text-[10px] uppercase tracking-wider border border-primary/30 bg-background px-2 py-1 rounded font-normal flex items-center gap-1"
-                            >
-                                <Save className="w-3 h-3" />
-                                Salvar
-                            </button>
-                        )}
-                    </div>
+                    {Object.keys(editedOrders).length > 0 && (
+                        <span className="text-[10px] uppercase tracking-wider bg-accent/10 text-accent px-2 py-1 rounded font-medium">
+                            Ajustado Manualmente
+                        </span>
+                    )}
                 </div>
             </section>
 
             {/* Products forecast */}
-            <section className="px-6 py-2">
-                <h2 className="font-display text-lg tracking-tight mb-3">Itens para Produzir</h2>
+            <section className="px-6 py-4">
+                <h2 className="font-display text-lg tracking-tight mb-3">Resumo por Produto</h2>
                 <div className="grid grid-cols-3 gap-2">
                     {products.map((product) => {
                         const qty = forecast[product.id] || 0;
                         return (
                             <div
                                 key={product.id}
-                                className={`rounded-xl p-3 text-center border transition-colors ${qty > 0 ? "bg-primary/10 border-primary/30" : "bg-card border-border"
+                                className={`rounded-xl p-3 text-center border transition-colors ${qty > 0 ? "bg-primary/5 border-primary/30" : "bg-card border-border opacity-60"
                                     }`}
                             >
-                                <span className="text-xl block">{product.icon}</span>
-                                <p className="text-foreground text-[11px] font-normal mt-1 leading-tight">{product.name}</p>
-                                <p className={`text-lg font-medium mt-1 ${qty > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                                <p className="text-foreground text-[11px] font-medium leading-tight line-clamp-2 min-h-6.5">
+                                    {product.name}
+                                </p>
+                                <p className={`text-xl font-bold mt-1 ${qty > 0 ? "text-primary" : "text-muted-foreground"}`}>
                                     {qty}
                                 </p>
                             </div>
@@ -128,37 +146,35 @@ export default function ProductionPage() {
 
             {/* All clients */}
             <section className="px-6 py-4 pb-8">
-                <div className="flex justify-between items-end mb-3">
-                    <h2 className="font-display text-lg tracking-tight">Clientes na Rota</h2>
-                    <div className="flex items-center gap-2">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-col">
+                        <h2 className="font-display text-lg tracking-tight">Clientes na Rota</h2>
                         <span className="text-muted-foreground text-xs">{dayClients.length} clientes</span>
-                        <Link to="/order/new"
-                            search={{ dia: selectedDay }}>
-                            <button
-                                className="bg-primary text-primary-foreground rounded-lg px-2.5 py-1 text-[10px] uppercase tracking-wider font-normal flex items-center gap-1 active:scale-95 transition-transform"
-                            >
-                                <Plus className="w-3 h-3" />
-                                Pedido
-                            </button>
-                        </Link>
                     </div>
+                    <Link to="/order/new" search={{ dia: selectedDay }}>
+                        <button className="bg-primary text-primary-foreground rounded-lg px-2.5 py-1.5 text-[10px] uppercase tracking-wider font-medium flex items-center gap-1 active:scale-95 transition-transform shadow-sm">
+                            <Plus className="w-3 h-3" />
+                            Pedido
+                        </button>
+                    </Link>
                 </div>
+
                 <div className="space-y-3">
                     {dayClients.map((client) => {
                         const order = getClientOrder(client);
+                        const hasNF = client.needFiscalNote || !!(client.socialReason && client.cnpj);
                         const isEdited = !!editedOrders[client.id];
-                        const hasNF = client.needsInvoice || !!(client.razaoSocial && client.cpfCnpj?.includes("/"));
 
                         return (
                             <div
                                 key={client.id}
-                                className={`bg-card rounded-xl p-4 border transition-colors ${isEdited ? "border-primary/50" : "border-border"
+                                className={`bg-card rounded-xl p-4 border transition-colors ${isEdited ? "border-primary/50 shadow-sm" : "border-border"
                                     }`}
                             >
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="text-foreground text-sm font-medium">{client.name}</p>
-                                        <p className="text-muted-foreground text-[11px] mt-0.5">{client.cidade}</p>
+                                        <p className="text-muted-foreground text-[11px] mt-0.5">{client.city}</p>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         {hasNF && (
@@ -167,7 +183,8 @@ export default function ProductionPage() {
                                             </span>
                                         )}
                                         {isEdited && (
-                                            <span className="text-[9px] uppercase tracking-wider bg-accent/10 text-accent px-1.5 py-0.5 rounded font-medium">
+                                            <span
+                                                className="text-[9px] uppercase tracking-wider bg-accent/10 text-accent px-1.5 py-0.5 rounded font-medium">
                                                 Editado
                                             </span>
                                         )}
@@ -189,7 +206,6 @@ export default function ProductionPage() {
                                             <QtyAdjuster
                                                 key={product.id}
                                                 label={product.name}
-                                                icon={product.icon}
                                                 qty={qty}
                                                 onAdjust={(delta) => adjustQty(client.id, product.id, delta)}
                                                 dimmed={qty === 0}
@@ -205,9 +221,10 @@ export default function ProductionPage() {
                                                     [client.id]: { ...order },
                                                 }));
                                             }}
-                                            className="text-muted-foreground text-[11px] mt-1 hover:text-foreground transition-colors"
+                                            className="text-muted-foreground text-xs mt-2 hover:text-foreground transition-colors font-normal w-full border-t pt-2 border-border "
                                         >
-                                            + adicionar itens
+                                            <Plus className="w-3 h-3 inline-block mr-1" />
+                                            ajustar quantidades
                                         </button>
                                     )}
                                 </div>
@@ -216,20 +233,20 @@ export default function ProductionPage() {
                     })}
 
                     {dayClients.length === 0 && (
-                        <p className="text-muted-foreground text-sm text-center py-4">Nenhum cliente na rota deste dia</p>
+                        <p className="text-muted-foreground text-sm text-center py-8">Nenhum cliente na rota deste dia</p>
                     )}
                 </div>
 
                 {/* Skipped clients */}
                 {skippedClients.length > 0 && (
-                    <div className="mt-4">
+                    <div className="mt-6">
                         <p className="text-muted-foreground text-xs uppercase tracking-wider mb-2">Pulados hoje ({skippedClients.length})</p>
                         <div className="space-y-1.5">
                             {skippedClients.map(c => (
                                 <div key={c.id} className="bg-card/50 rounded-lg px-3 py-2 border border-border/50 flex justify-between items-center opacity-60">
                                     <div>
                                         <p className="text-foreground text-sm line-through">{c.name}</p>
-                                        <p className="text-muted-foreground text-[11px]">{c.cidade}</p>
+                                        <p className="text-muted-foreground text-[11px]">{c.city}</p>
                                     </div>
                                     <button
                                         onClick={() => handleRestore(c.id)}
@@ -243,9 +260,7 @@ export default function ProductionPage() {
                         </div>
                     </div>
                 )}
-
             </section>
-        </>
+        </div>
     );
 }
-

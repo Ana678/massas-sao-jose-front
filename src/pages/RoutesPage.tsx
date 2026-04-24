@@ -1,50 +1,84 @@
-import { useState } from "react";
-import { CheckCircle, Cloud, FileText, Download, Calendar, X, Plus, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle, Cloud, FileText, Download, Calendar, X, Plus, RotateCcw, AlertCircle } from "lucide-react";
 import ItemBreakdown from "@/components/ItemBreakdown";
 import QtyAdjuster from "@/components/QtyAdjuster";
 import AddressLink from "@/components/AddressLink";
 import PhoneButton from "@/components/PhoneButton";
-import {
-    getClients, getProducts, getOrders, saveOrders, generateId, getTodayRoute,
-    getTodayDayName, formatCurrency, clientNeedsInvoice, getRouteOverrides, saveRouteOverrides,
-    getSkippedClients, toggleSkipClient,
-    ALL_CITIES, type Client, type Order
-} from "@/lib/data";
 import { toast } from "sonner";
 import Logo from "@/assets/logo.svg?react";
 import { Link } from '@tanstack/react-router';
+import { type Client, type Order } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
+
+import { getCitiesForToday } from "@/lib/utils";
+import { useClients } from "@/lib/hooks/useClients";
+import { useProducts } from "@/lib/hooks/useProduct";
+import { useOrdersList, useCreateOrder } from "@/lib/hooks/useOrders";
+import {
+    generateId, getRouteOverrides, saveRouteOverrides,
+    getSkippedClients, toggleSkipClient, ALL_CITIES
+} from "@/lib/data";
+import PaymentSelector from "@/components/PaymentSelector";
 
 export default function RoutesPage() {
-    const [products] = useState(getProducts());
-    const [orders, setOrders] = useState<Order[]>(getOrders());
-    const [delivered, setDelivered] = useState<Record<string, boolean>>({});
-    const [quantities, setQuantities] = useState<Record<string, Record<string, number>>>(() => {
+    const { data: allClients = [], isLoading: loadingClients } = useClients();
+    const { data: products = [], isLoading: loadingProducts } = useProducts();
+    const { data: orders = [], isLoading: loadingOrders } = useOrdersList();
+    const { mutate: createOrder, isPending: isCreatingOrder } = useCreateOrder();
 
-        const all = getClients();
-        const initialRoute = getTodayRoute();
-        const routeClients = all.filter((c) => initialRoute.includes(c.cidade));
-        const q: Record<string, Record<string, number>> = {};
-        routeClients.forEach((c) => {
-            if (c.averageOrder) q[c.id] = { ...c.averageOrder };
-        });
-        return q;
-    });
+
+    const [delivered, setDelivered] = useState<Record<string, boolean>>({});
+    const [quantities, setQuantities] = useState<Record<string, Record<string, number>>>({});
+
+
+    const [deliveryClient, setDeliveryClient] = useState<Client | null>(null);
+    const [deliveryPaid, setDeliveryPaid] = useState(true);
+    const [deliveryPayment, setDeliveryPayment] = useState<Order["paymentMethod"]>("dinheiro");
+
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [overrideDate, setOverrideDate] = useState("");
     const [overrideCities, setOverrideCities] = useState<string[]>([]);
     const [overrideReason, setOverrideReason] = useState("");
     const [skipped, setSkipped] = useState(getSkippedClients());
-    const todayRoute = getTodayRoute();
-    const allClients = getClients();
-    const clients = allClients.filter((c) => todayRoute.includes(c.cidade));
+    const [hasInitialized, setHasInitialized] = useState(false);
 
-    const todayCities = todayRoute.join(", ");
-    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
     const overrides = getRouteOverrides();
     const hasOverride = overrides.some((o) => o.date === todayStr);
-
+    const todayCities = getCitiesForToday(today, overrides);
+    const routeClients = allClients.filter((c) => todayCities.includes(c.city));
     const skipKey = todayStr;
     const skippedIds = skipped[skipKey] || [];
+
+    useEffect(() => {
+
+        if (hasInitialized || allClients.length === 0 || orders.length === 0) return;
+
+        if (routeClients.length === 0) return;
+
+        const initialQuantities: Record<string, Record<string, number>> = {};
+
+        routeClients.forEach(client => {
+            const clientOrders = orders
+                .filter(o => o.clientName === client.name && o.enabled)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+            const lastOrder = clientOrders[0];
+
+            if (lastOrder) {
+                initialQuantities[client.id] = {};
+                lastOrder.products.forEach(p => {
+                    initialQuantities[client.id][p.id] = p.quantity;
+                });
+            }
+        });
+
+        setQuantities(initialQuantities);
+        setHasInitialized(true);
+
+    }, [allClients.length, orders.length, routeClients.length, hasInitialized]);
 
     function handleSkipClient(clientId: string) {
         const updated = toggleSkipClient(skipKey, clientId);
@@ -58,13 +92,26 @@ export default function RoutesPage() {
         toast.success("Cliente restaurado na rota");
     }
 
-    const todayOrders = orders.filter((o) => o.createdAt.startsWith(todayStr));
-    const todayRevenue = todayOrders
-        .filter((o) => o.status === "concluido")
-        .reduce((s, o) => s + o.total, 0);
+    const todayOrders = orders.filter((o) => o.createdAt.startsWith(todayStr) && o.enabled);
+    const todayRevenue = todayOrders.reduce((sum, o) => sum + o.total, 0);
 
-    const pending = clients.filter((c) => !delivered[c.id]);
-    const done = clients.filter((c) => delivered[c.id]);
+    const checkIfDeliveredToday = (client: Client) => {
+        if (delivered[client.id]) return true;
+
+        const hasOrderInDb = orders.some(o =>
+            o.clientName === client.name &&
+            o.createdAt.startsWith(todayStr) &&
+            o.isPaid &&
+            o.enabled
+        );
+
+        return hasOrderInDb;
+    };
+
+    const pending = routeClients.filter((c) => !checkIfDeliveredToday(c) && !skippedIds.includes(c.id));
+    const done = routeClients.filter((c) => checkIfDeliveredToday(c));
+
+    const skippedClientsList = routeClients.filter(c => skippedIds.includes(c.id));
 
     function adjustQty(clientId: string, productId: string, delta: number) {
         setQuantities((prev) => {
@@ -74,31 +121,31 @@ export default function RoutesPage() {
         });
     }
 
+    const unpaidOrders = orders.filter((o) => !o.isPaid);
+
     function markDelivered(client: Client) {
         const clientQty = quantities[client.id] || {};
         const items = Object.entries(clientQty)
             .filter(([, q]) => q > 0)
-            .map(([pid, q]) => {
-                const p = products.find((x) => x.id === pid);
-                return { productId: pid, productName: p?.name || "", qty: q, unitPrice: p?.sellPrice || 0 };
-            });
-        if (items.length === 0) return;
+            .map(([pid, q]) => ({ productId: pid, quantity: q }));
 
-        const order: Order = {
-            id: generateId(),
+        if (items.length === 0) {
+            toast.error("Adicione itens para concluir a entrega");
+            return;
+        }
+        createOrder({
             clientId: client.id,
-            clientName: client.name,
-            items,
-            total: items.reduce((s, i) => s + i.qty * i.unitPrice, 0),
-            paymentMethod: "dinheiro",
-            status: "concluido",
-            createdAt: new Date().toISOString(),
-            isPreOrder: false,
-        };
-        const updated = [...orders, order];
-        setOrders(updated);
-        saveOrders(updated);
-        setDelivered((prev) => ({ ...prev, [client.id]: true }));
+            products: items,
+            paymentMethod: deliveryPayment,
+            isPaid: deliveryPaid,
+
+        }, {
+            onSuccess: () => {
+                setDelivered((prev) => ({ ...prev, [client.id]: true }));
+                setDeliveryClient(null);
+                toast.success("Entrega salva no sistema!");
+            }
+        });
     }
 
     function saveOverride() {
@@ -121,8 +168,17 @@ export default function RoutesPage() {
             prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city]
         );
     }
-    const skippedClientsList = clients.filter(c => skippedIds.includes(c.id));
 
+    const isLoading = loadingClients || loadingProducts || loadingOrders;
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
+                <Cloud className="w-8 h-8 animate-pulse text-primary" />
+                <p>Montando rota do dia...</p>
+            </div>
+        );
+    }
     return (
         <>
             {/* Header */}
@@ -140,7 +196,7 @@ export default function RoutesPage() {
                     </button>
                     <div className="flex items-center gap-1.5 bg-card px-3 py-1.5 rounded-full border border-border">
                         <Cloud className="w-4 h-4 text-primary" />
-                        <span className="text-xs text-primary tracking-wide font-normal">Sync</span>
+                        <span className="text-xs text-primary tracking-wide font-normal">Sync Ok</span>
                     </div>
                 </div>
             </header>
@@ -148,9 +204,9 @@ export default function RoutesPage() {
             {/* Greeting */}
             <section className="px-6 pt-2 pb-4">
                 <h1 className="font-display text-3xl tracking-tight leading-tight">
-                    {getTodayDayName()}, <br />
+                    {today.toLocaleDateString('pt-BR', { weekday: 'long' }).replace('-feira', '')}, <br />
                     <span className="text-base">rota para </span>
-                    <span className="italic text-base">{todayCities}.</span>
+                    <span className="italic text-base">{todayCities.join(", ") || "nenhuma cidade"}.</span>
                 </h1>
                 {hasOverride && (
                     <p className="text-accent text-xs mt-1">⚠️ Rota alterada para hoje</p>
@@ -170,7 +226,7 @@ export default function RoutesPage() {
                         <div className="w-px h-8 bg-border"></div>
                         <div className="text-right">
                             <p className="text-muted-foreground text-xs mb-1 tracking-wide">Visitas</p>
-                            <p className="text-foreground text-sm font-normal">{done.length}/{clients.length}</p>
+                            <p className="text-foreground text-sm font-normal">{done.length}/{routeClients.length}</p>
                         </div>
                     </div>
                 </div>
@@ -190,10 +246,26 @@ export default function RoutesPage() {
                     </button>
 
                 </Link>
+                {unpaidOrders.length > 0 && (
+                    <Link
+                        to="/orders"
+                        search={{ dia: undefined }}
+                    >
+                        <button
+                            className="w-full mt-3 bg-card text-foreground border border-border rounded-2xl p-4 flex items-center justify-between gap-3 transition-transform active:scale-[0.98] shadow-sm"
+                        >
+                            <span className="flex items-center gap-2 text-sm">
+                                <AlertCircle className="w-5 h-5 text-accent" />
+                                Pedidos não pagos
+                            </span>
+                            <span className="text-primary text-sm font-medium">{unpaidOrders.length}</span>
+                        </button>
+                    </Link>
+                )}
             </section>
 
             {/* Route */}
-            <section className="px-6 pt-2 flex-grow">
+            <section className="px-6 pt-2 grow pb-24">
                 <div className="flex justify-between items-end mb-3">
                     <h2 className="font-display text-lg tracking-tight">Rota de Hoje</h2>
                     <span className="text-muted-foreground text-xs">{pending.length} visitas restantes</span>
@@ -201,7 +273,7 @@ export default function RoutesPage() {
                 <div className="space-y-3">
                     {pending.map((client) => {
                         const clientQty = quantities[client.id] || {};
-                        const hasNF = clientNeedsInvoice(client);
+                        const hasNF = client.needFiscalNote || !!(client.socialReason && client.cnpj);
 
                         return (
                             <div key={client.id} className="bg-card rounded-xl p-4 flex flex-col gap-3 border border-border animate-slide-up">
@@ -228,16 +300,15 @@ export default function RoutesPage() {
 
                                 {/* Quantity adjusters */}
                                 <div className="space-y-1">
-                                    {Object.entries(clientQty).filter(([, q]) => q > 0).map(([pid, qty]) => {
-                                        const p = products.find((x) => x.id === pid);
-                                        if (!p) return null;
+
+                                    {products.map((p) => {
+                                        const qty = clientQty[p.id] || 0;
                                         return (
                                             <QtyAdjuster
-                                                key={pid}
+                                                key={p.id}
                                                 label={p.name}
-                                                icon={p.icon}
                                                 qty={qty}
-                                                onAdjust={(delta) => adjustQty(client.id, pid, delta)}
+                                                onAdjust={(delta) => adjustQty(client.id, p.id, delta)}
                                             />
                                         );
                                     })}
@@ -245,26 +316,29 @@ export default function RoutesPage() {
 
                                 <div className="flex items-center justify-between pt-1">
                                     <div className="flex items-center gap-2">
-                                        {hasNF ? (
+                                        {hasNF && (
                                             <button className="text-primary text-[11px] flex items-center gap-1 hover:underline">
                                                 <FileText className="w-3.5 h-3.5" />
                                                 Gerar NF
                                             </button>
-                                        ) : <div />}
+                                        )}
                                         <button
                                             onClick={() => handleSkipClient(client.id)}
-                                            className="text-destructive/60 hover:text-destructive text-[11px] flex items-center gap-1 transition-colors"
+                                            className="text-destructive/60 hover:text-destructive text-[11px] flex items-center gap-1 transition-colors ml-2"
                                         >
                                             <X className="w-3.5 h-3.5" />
                                             Pular
                                         </button>
                                     </div>
                                     <button
-                                        onClick={() => markDelivered(client)}
-                                        className="text-primary-foreground text-xs bg-primary px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"
+                                        onClick={() => setDeliveryClient(client)}
+
+                                        //onClick={() => markDelivered(client)}
+                                        disabled={isCreatingOrder}
+                                        className="text-primary-foreground text-xs bg-primary px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform disabled:opacity-50"
                                     >
                                         <CheckCircle className="w-4 h-4" />
-                                        Entregue
+                                        {isCreatingOrder ? "Salvando..." : "Entregue"}
                                     </button>
                                 </div>
                             </div>
@@ -272,38 +346,39 @@ export default function RoutesPage() {
                     })}
 
                     {done.map((client) => {
-                        const hasNF = clientNeedsInvoice(client);
                         return (
-                            <div key={client.id} className="bg-background rounded-xl p-4 border border-border">
+                            <div key={client.id} className="bg-primary/5 rounded-xl p-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3.5">
-                                        <div className="w-2 h-2 rounded-full bg-primary"></div>
+
                                         <div>
-                                            <p className="text-foreground text-sm line-through decoration-muted-foreground font-normal">{client.name}</p>
-                                            <p className="text-primary text-xs mt-0.5">Entregue ✓</p>
+                                            <p className="text-foreground text-sm line-through decoration-muted-foreground decoration-1 font-normal">{client.name}</p>
+                                            <p className="text-primary text-xs mt-0.5 align-middle flex items-center gap-2">
+                                                <CheckCircle className="w-3 h-3 text-primary/80" />
+                                                Pedido Entregue •
+                                            </p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {hasNF && (
-                                            <button className="text-primary hover:bg-primary/10 p-1.5 rounded transition-colors">
+                                        {true && (
+                                            <button className="text-primary bg-primary/10 hover:bg-primary/20 p-1.5 rounded-xl transition-colors">
                                                 <Download className="w-4 h-4" />
                                             </button>
                                         )}
-                                        <CheckCircle className="w-5 h-5 text-primary" />
                                     </div>
                                 </div>
                             </div>
                         );
                     })}
-                    {/* Skipped clients */}
+
                     {skippedClientsList.length > 0 && (
-                        <div className="mt-4">
+                        <div className="mt-4 border-t border-border/50 pt-4">
                             <p className="text-muted-foreground text-xs uppercase tracking-wider mb-2">Pulados hoje ({skippedClientsList.length})</p>
                             {skippedClientsList.map(c => (
                                 <div key={c.id} className="bg-card/50 rounded-lg px-3 py-2 border border-border/50 flex justify-between items-center opacity-60 mb-1.5">
                                     <div>
                                         <p className="text-foreground text-sm line-through">{c.name}</p>
-                                        <p className="text-muted-foreground text-[11px]">{c.cidade}</p>
+                                        <p className="text-muted-foreground text-[11px]">{c.city}</p>
                                     </div>
                                     <button
                                         onClick={() => handleRestoreClient(c.id)}
@@ -317,7 +392,7 @@ export default function RoutesPage() {
                         </div>
                     )}
 
-                    {clients.length === 0 && (
+                    {routeClients.length === 0 && (
                         <div className="text-center py-8 text-muted-foreground text-sm">
                             Nenhum cliente na rota de hoje
                         </div>
@@ -325,9 +400,61 @@ export default function RoutesPage() {
                 </div>
             </section>
 
-            {/* Route Override Modal */}
+            {deliveryClient && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                    <div className="w-full max-w-md bg-background rounded-t-2xl py-4 space-y-4">
+
+                        <div className="flex items-start justify-between gap-3 px-4">
+                            <div>
+                                <h3 className="font-display text-xl leading-tight mt-1">{deliveryClient.name}</h3>
+                                <p className="text-muted-foreground text-xs uppercase tracking-widest pt-1">Finalizar entrega</p>
+                            </div>
+                            <button onClick={() => setDeliveryClient(null)} aria-label="Fechar">
+                                <X className="w-5 h-5 text-muted-foreground cursor-pointer" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 px-4">
+                            <button
+                                onClick={() => setDeliveryPaid(true)}
+                                className={`rounded-xl border py-3 text-xs transition-colors font-normal
+                                    ${deliveryPaid ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"}`}
+                            >
+                                Já pagou
+                            </button>
+                            <button
+                                onClick={() => setDeliveryPaid(false)}
+                                className={`rounded-xl border py-3 text-xs transition-colors font-normal
+                                    ${!deliveryPaid ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"}`}
+                            >
+                                Ficou pendente
+                            </button>
+                        </div>
+
+                        {
+                            deliveryPaid && (
+                                <section className="flex flex-col gap-2 px-4">
+                                    <label className="text-muted-foreground text-xs uppercase tracking-widest mt-2">Forma de Pagamento</label>
+                                    <PaymentSelector value={deliveryPayment as "pix" | "cartao" | "dinheiro"} onChange={setDeliveryPayment} />
+                                </section>
+
+                            )
+                        }
+
+                        <div className="p-4 pb-0 border-t border-border">
+                            <button
+                                onClick={() => markDelivered(deliveryClient)}
+                                className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 font-normal disabled:opacity-50 transition-transform active:scale-[0.98]"
+                            >
+                                Confirmar entrega
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showOverrideModal && (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-end justify-center">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                     <div className="w-full max-w-md bg-background rounded-t-2xl max-h-[80vh] flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                             <h3 className="font-display text-lg">Alterar Rota (Feriado)</h3>

@@ -1,25 +1,33 @@
 import { useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { getProducts, saveProducts, type Product, formatCurrency } from "@/lib/data";
+import { formatCurrency } from "@/lib/utils";
+import { type Product } from "@/lib/types";
+import { useProducts, useSaveProduct } from "@/lib/hooks/useProduct";
+import { CookieIcon } from "lucide-react";
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState(getProducts());
+    const { data: products = [], isLoading, isError } = useProducts();
+    const { mutate: saveProduct } = useSaveProduct();
+
     const [editing, setEditing] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({ name: "", costPrice: 0, sellPrice: 0 });
+    const [editForm, setEditForm] = useState({ name: "", investment: 0, price: 0 });
 
     function startEdit(p: Product) {
         setEditing(p.id);
-        setEditForm({ name: p.name, costPrice: p.costPrice, sellPrice: p.sellPrice });
+        setEditForm({ name: p.name, investment: p.investment, price: p.price });
     }
 
     function saveEdit(id: string) {
-        const updated = products.map((p) =>
-            p.id === id ? { ...p, name: editForm.name, costPrice: editForm.costPrice, sellPrice: editForm.sellPrice } : p
+        saveProduct(
+            { id, ...editForm },
+            {
+                onSuccess: () => setEditing(null)
+            }
         );
-        setProducts(updated);
-        saveProducts(updated);
-        setEditing(null);
     }
+
+    if (isLoading) return <div className="h-screen flex items-center justify-center p-6 text-muted-foreground"><p>Carregando produtos...</p></div>;
+    if (isError) return <div className="h-screen flex items-center justify-center text-destructive">Erro ao carregar os produtos.</div>;
 
     return (
         <>
@@ -40,8 +48,8 @@ export default function ProductsPage() {
                                         <label className="text-muted-foreground text-xs">Custo</label>
                                         <input
                                             type="number"
-                                            value={editForm.costPrice}
-                                            onChange={(e) => setEditForm((f) => ({ ...f, costPrice: +e.target.value }))}
+                                            value={editForm.investment}
+                                            onChange={(e) => setEditForm((f) => ({ ...f, investment: +e.target.value }))}
                                             className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
                                         />
                                     </div>
@@ -49,8 +57,8 @@ export default function ProductsPage() {
                                         <label className="text-muted-foreground text-xs">Venda</label>
                                         <input
                                             type="number"
-                                            value={editForm.sellPrice}
-                                            onChange={(e) => setEditForm((f) => ({ ...f, sellPrice: +e.target.value }))}
+                                            value={editForm.price}
+                                            onChange={(e) => setEditForm((f) => ({ ...f, price: +e.target.value }))}
                                             className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
                                         />
                                     </div>
@@ -66,13 +74,13 @@ export default function ProductsPage() {
                             <button onClick={() => startEdit(p)} className="w-full text-left">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <span className="text-2xl">{p.icon}</span>
+                                        <span className="text-2xl"><CookieIcon /></span>
                                         <div>
                                             <p className="text-foreground text-sm font-normal">{p.name}</p>
-                                            <p className="text-muted-foreground text-xs">Custo: {formatCurrency(p.costPrice)}/{p.unit}</p>
+                                            <p className="text-muted-foreground text-xs">Custo: {formatCurrency(p.investment)}/und</p>
                                         </div>
                                     </div>
-                                    <p className="text-primary text-sm font-normal">{formatCurrency(p.sellPrice)}/{p.unit}</p>
+                                    <p className="text-primary text-sm font-normal">{formatCurrency(p.price)}/und</p>
                                 </div>
                             </button>
                         )}

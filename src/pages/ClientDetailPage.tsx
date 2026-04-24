@@ -1,181 +1,215 @@
 import { useState } from "react";
-import { FileText, Edit2, Check, X } from "lucide-react";
+import { FileText, Edit2, Check, X, Trash2, Building2, ShoppingCart, User } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import PhoneButton from "@/components/PhoneButton";
 import AddressLink from "@/components/AddressLink";
-import StatusBadge from "@/components/StatusBadge";
-import { getClients, saveClients, getOrders, getProducts, formatCurrency, clientNeedsInvoice, type Client } from "@/lib/data";
-import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
+import ClientForm, { type ClientFormValues } from "@/components/ClientForm";
+import { isBusinessClient, type ClientFormType } from "@/lib/clientSchema";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { type Client } from "@/lib/types";
+import { useClient, useClientOrders } from "@/lib/hooks/useClients";
+import { useDeleteClient } from "@/lib/hooks/useClients";
 
 interface ClientDetailPageProps {
-
     id: string;
+}
 
+function clientToForm(c: Client): ClientFormValues {
+    return {
+        name: c.name || "",
+        phone: c.phone || "",
+        cnpj: c.cnpj || "",
+        socialReason: c.socialReason || "",
+        stateInscription: c.stateInscription || "",
+        cep: c.cep || "",
+        address: c.address || "",
+        city: c.city || "",
+        state: c.state || "RN",
+        needFiscalNote: !!c.needFiscalNote,
+    };
 }
 
 export default function ClientDetailPage({ id }: ClientDetailPageProps) {
 
-    const [clients, setClients] = useState(getClients());
-    const [orders] = useState(getOrders());
-    const [products] = useState(getProducts());
     const [editing, setEditing] = useState(false);
-    const [form, setForm] = useState<Partial<Client>>({});
 
-    const client = clients.find((c) => c.id === id);
-    if (!client) return <div className="p-6">Cliente não encontrado</div>;
+    const [type, setType] = useState<ClientFormType>("simple");
+    const [values, setValues] = useState<ClientFormValues>(() => clientToForm({} as Client));
+    const [errors, setErrors] = useState<Partial<Record<keyof ClientFormValues, string>>>({});
 
-    const clientOrders = orders.filter((o) => o.clientId === client.id);
-    const hasNF = clientNeedsInvoice(client);
+    const { data: client, isLoading: loadingClient, error } = useClient(id);
+    const { data: clientOrders = [] } = useClientOrders(id);
+    const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
+
+
+    const isBusiness = client ? isBusinessClient(client) : false;
+
+    if (loadingClient) return <div className="h-screen flex items-center justify-center p-6 text-muted-foreground"><p>Carregando dados do cliente...</p></div>;
+    if (error) return <div className="h-screen flex items-center justify-center p-6 text-muted-foreground"><p>Erro ao carregar dados do cliente. {error.message}</p></div>;
+    if (!client) return <div className="h-screen flex items-center justify-center p-6 text-muted-foreground"><p>Cliente não encontrado.</p></div>;
 
     function startEditing() {
-        setForm({ ...client });
+        setValues(clientToForm(client!));
+        setType(isBusinessClient(client!) ? "business" : "simple");
+        setErrors({});
         setEditing(true);
     }
-
-    function saveEdit() {
-        if (!form.name || !form.cidade) return;
-        const updated = clients.map((c) => (c.id === id ? { ...c, ...form } : c));
-        saveClients(updated);
-        setClients(updated);
+    function cancelEdit() {
         setEditing(false);
-        toast.success("Cliente atualizado!");
+        setErrors({});
     }
 
-    function set(key: string, value: string | boolean) {
-        setForm((prev) => ({ ...prev, [key]: value }));
+    function handleDelete() {
+
+        deleteClient(id);
     }
+
 
     return (
         <>
             <PageHeader
                 title={client.name}
-                subtitle={client.razaoSocial}
+                subtitle={isBusiness ? client.socialReason : client.city}
                 backTo="/clientes"
                 rightAction={
                     !editing ? (
-                        <button onClick={startEditing} className="bg-primary/10 text-primary p-2 rounded-xl">
-                            <Edit2 className="w-5 h-5" />
-                        </button>
-                    ) : (
                         <div className="flex gap-2">
-                            <button onClick={() => setEditing(false)} className="bg-card text-muted-foreground p-2 rounded-xl border border-border">
-                                <X className="w-5 h-5" />
-                            </button>
-                            <button onClick={saveEdit} className="bg-primary text-primary-foreground p-2 rounded-xl">
-                                <Check className="w-5 h-5" />
+                            <button onClick={startEditing} className="bg-primary/10 text-primary p-2 rounded-xl" aria-label="Editar">
+                                <Edit2 className="w-5 h-5" />
                             </button>
                         </div>
+                    ) : (
+                        <div className="flex gap-2">
+                            <button onClick={cancelEdit} className="bg-card text-muted-foreground p-2 rounded-xl border border-border">
+                                <X className="w-5 h-5" />
+                            </button>
+                            <button
+                                // onClick={saveEdit}
+                                className="bg-primary text-primary-foreground p-2 rounded-xl">
+                                <Check className="w-5 h-5" />
+                            </button>
+                        </div >
                     )
                 }
             />
 
-            <section className="px-6 space-y-4 pb-6">
-                {editing ? (
-                    <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
-                        {[
-                            { key: "name", label: "Nome / Fantasia" },
-                            { key: "phone", label: "Telefone" },
-                            { key: "email", label: "Email" },
-                            { key: "cpfCnpj", label: "CPF / CNPJ" },
-                            { key: "razaoSocial", label: "Razão Social" },
-                            { key: "inscricaoEstadual", label: "Inscrição Estadual" },
-                            { key: "cep", label: "CEP" },
-                            { key: "endereco", label: "Endereço" },
-                            { key: "cidade", label: "Cidade" },
-                            { key: "estado", label: "Estado" },
-                        ].map((f) => (
-                            <div key={f.key}>
-                                <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">{f.label}</label>
-                                <input
-                                    type="text"
-                                    value={(form as { [key: string]: string })[f.key] || ""}
-                                    onChange={(e) => set(f.key, e.target.value)}
-                                    className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                />
-                            </div>
-                        ))}
-                        <label className="flex items-center gap-3 cursor-pointer pt-2">
-                            <input
-                                type="checkbox"
-                                checked={form.needsInvoice || false}
-                                onChange={(e) => set("needsInvoice", e.target.checked)}
-                                className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+            < section className="px-6 space-y-4 pb-6" >
+                {
+                    editing ? (
+                        <div className="flex flex-col gap-y-10">
+                            <ClientForm
+                                type={type}
+                                onTypeChange={(t) => { setType(t); setErrors({}); }}
+                                values={values}
+                                onChange={setValues}
+                                errors={errors}
                             />
-                            <span className="text-foreground text-sm">Cliente precisa de Nota Fiscal</span>
-                        </label>
-                    </div>
-                ) : (
-                    <>
-                        {/* Info card */}
-                        <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-sm">
-                                    <FileText className="w-4 h-4 text-muted-foreground" />
-                                    <span className="font-normal">{client.cpfCnpj}</span>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button
+                                        className="bg-destructive/10 text-destructive rounded-xl flex justify-center items-center gap-4 py-3 font-normal"
+                                        aria-label="Excluir cliente"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        Excluir Cliente
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Excluir Cliente?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação removerá <strong>{client.name}</strong> permanentemente.
+                                            Essa ação não pode ser desfeita e <strong>apagará permanentemente todos os {clientOrders.length} pedido(s)</strong> associados a ele.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
+
+                                        <AlertDialogAction
+                                            onClick={handleDelete}
+                                            disabled={isDeleting}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:pointer-events-none disabled:opacity-60 transition-colors"
+                                        >
+                                            {isDeleting ? "Excluindo..." : "Excluir Cliente"}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Type indicator */}
+                            <div className="flex items-center gap-2">
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${isBusiness ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"
+                                    }`}>
+                                    {isBusiness ? <Building2 className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                                    <span className="font-medium">{isBusiness ? "Empresa" : "Pessoa"}</span>
                                 </div>
-                                {hasNF && (
-                                    <span className="text-[9px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
-                                        NF
+                                {client.needFiscalNote && (
+                                    <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-1 rounded font-medium">
+                                        Emite NF
                                     </span>
                                 )}
                             </div>
-                            {client.inscricaoEstadual && (
-                                <div className="flex items-center gap-2 text-sm">
-                                    <FileText className="w-4 h-4 text-muted-foreground" />
-                                    <span>IE: {client.inscricaoEstadual}</span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-3">
-                                <PhoneButton phone={client.phone} size="md" />
-                                <span className="text-muted-foreground text-sm">{client.phone}</span>
-                            </div>
-                            <AddressLink client={client} />
-                            {client.email && <p className="text-muted-foreground text-xs">{client.email}</p>}
-                        </div>
-                    </>
-                )}
 
-                {/* Average order */}
-                {!editing && client.averageOrder && Object.keys(client.averageOrder).length > 0 && (
-                    <div className="bg-card rounded-2xl p-4 border border-border">
-                        <p className="text-muted-foreground text-xs uppercase tracking-widest mb-2">Pedido Médio</p>
-                        <div className="space-y-1">
-                            {Object.entries(client.averageOrder).map(([pid, qty]) => {
-                                const p = products.find((x) => x.id === pid);
-                                return p ? (
-                                    <p key={pid} className="text-foreground text-sm">
-                                        {p.icon} {qty}{p.unit} {p.name}
-                                    </p>
-                                ) : null;
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Orders history */}
-                {!editing && (
-                    <div>
-                        <h2 className="font-display text-lg tracking-tight mb-3">Histórico de Compras</h2>
-                        {clientOrders.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">Nenhuma compra registrada</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {clientOrders.slice(0, 10).map((o) => (
-                                    <div key={o.id} className="bg-card rounded-xl p-3 border border-border">
-                                        <div className="flex justify-between items-center">
-                                            <p className="text-foreground text-sm font-normal">{formatCurrency(o.total)}</p>
-                                            <StatusBadge status={o.status} />
-                                        </div>
-                                        <p className="text-muted-foreground text-xs mt-1">
-                                            {new Date(o.createdAt).toLocaleDateString("pt-BR")}
-                                        </p>
+                            {/* Info card */}
+                            <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
+                                {isBusiness && client.cnpj && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                                        <span className="font-normal">{client.cnpj}</span>
                                     </div>
-                                ))}
+                                )}
+                                {isBusiness && client.stateInscription && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                                        <span>IE: {client.stateInscription}</span>
+                                    </div>
+                                )}
+                                {client.phone && (
+                                    <div className="flex items-center gap-3">
+                                        <PhoneButton phone={client.phone} size="sm" />
+                                        <span className="text-primary/70 text-sm">{client.phone}</span>
+                                    </div>
+                                )}
+                                <AddressLink client={client} />
                             </div>
-                        )}
-                    </div>
-                )}
+
+                            <div>
+                                <h2 className="font-display text-lg tracking-tight mb-3">Histórico de Compras</h2>
+                                {clientOrders.length === 0 ? (
+                                    <p className="text-muted-foreground text-sm">Nenhuma compra registrada</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {clientOrders.slice(0, 10).map((item) => (
+                                            <div key={item.id} className="bg-card rounded-xl p-3 border border-border flex gap-3">
+
+                                                <div className="flex items-center p-2 bg-primary/5 rounded-lg radius-lg">
+                                                    <ShoppingCart size={16} />
+                                                </div>
+                                                <div className="flex flex-col ">
+
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-foreground text-sm font-normal">{formatCurrency(item.total)}</p>
+                                                    </div>
+                                                    <p className="text-muted-foreground text-xs mt-1">
+                                                        {new Date(item.createdAt).toLocaleDateString("pt-BR")}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
             </section>
+
         </>
     );
 }
