@@ -11,7 +11,7 @@ const methods = [
     { key: "cartao" as const, label: "Cartao", icon: CreditCard },
 ];
 
-export default function PaymentSelector({ value, onChange }: PaymentSelectorProps) {
+export default function PaymentSelector({ value = "dinheiro", onChange }: PaymentSelectorProps) {
     return (
         <div className="flex gap-2">
             {methods.map((m) => {

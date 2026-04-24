@@ -1,6 +1,7 @@
+import { Minus, Plus } from "lucide-react";
+import { type Product } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 import { useState } from "react";
-import { Minus } from "lucide-react";
-import { formatCurrency, type Product } from "@/lib/data";
 
 interface ProductGridProps {
     products: Product[];
@@ -10,7 +11,7 @@ interface ProductGridProps {
     onSetQty?: (productId: string, qty: number) => void;
 }
 
-export default function ProductGri({ products, quantities, onTap, onAdjust, onSetQty }: ProductGridProps) {
+export default function ProductGrid({ products, quantities, onAdjust, onSetQty }: ProductGridProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
 
@@ -23,38 +24,46 @@ export default function ProductGri({ products, quantities, onTap, onAdjust, onSe
         const parsed = parseInt(inputValue, 10);
         const newQty = isNaN(parsed) || parsed < 0 ? 0 : parsed;
         const currentQty = quantities[pid] || 0;
+
         if (onSetQty) {
             onSetQty(pid, newQty);
         } else {
             onAdjust(pid, newQty - currentQty);
         }
         setEditingId(null);
-
     }
 
     return (
-        <div className="grid grid-cols-3 gap-2">
-            {products.map((p) => {
-                const qty = quantities[p.id] || 0;
-                const isEditing = editingId === p.id;
-                return (
-                    <div key={p.id} className="relative">
-                        <button
-                            onClick={() => onTap(p.id)}
-                            className={`w-full h-full bg-card rounded-xl p-3 border transition-all active:scale-95 flex flex-col items-center gap-1.5 min-h-[90px] justify-center ${qty > 0 ? "border-primary shadow-sm" : "border-border"
-                                }`}
-                        >
-                            <span className="text-2xl">{p.icon}</span>
-                            <span className="text-foreground text-[10px] leading-tight text-center font-normal">{p.name}</span>
-                            <span className="text-primary text-[10px]">{formatCurrency(p.sellPrice)}</span>
-                        </button>
-                        {qty > 0 && (
-                            <div className="absolute -top-2.5 right-1.5 flex items-center gap-2">
+        <div className="space-y-4">
+
+            <div className="grid grid-cols-1 gap-3">
+                {products.map((product) => {
+
+                    const qty = quantities[product.id] || 0;
+                    const price = product.price || 0;
+                    const isEditing = editingId === product.id;
+
+                    return (
+                        <div key={product.id} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between">
+                            <div className="flex-1 min-w-0 pr-4">
+                                <p className="text-sm font-medium truncate">
+                                    {product.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    <span className="bg-primary/5 p-1 rounded-lg font-normal text-xs text-primary/50 mr-1.5">{formatCurrency(price)}</span>
+                                    Subtotal: {formatCurrency(price * qty)}
+                                </p>
+
+                            </div>
+                            <div className="flex items-center gap-3 bg-background rounded-2xl border border-border p-1">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onAdjust(p.id, -1); }}
-                                    className="w-6 h-6 rounded-full bg-destructive text-accent-foreground flex items-center justify-center shadow-sm"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onAdjust(product.id, -1);
+                                    }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-muted active:scale-90 transition-transform"
                                 >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3" />
                                 </button>
                                 {isEditing ? (
                                     <input
@@ -62,25 +71,37 @@ export default function ProductGri({ products, quantities, onTap, onAdjust, onSe
                                         min={0}
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
-                                        onBlur={() => commitEdit(p.id)}
-                                        onKeyDown={(e) => { if (e.key === "Enter") commitEdit(p.id); }}
+                                        onBlur={() => commitEdit(product.id)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") commitEdit(product.id); }}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="bg-primary text-primary-foreground text-xs font-normal w-8 h-6 rounded-full text-center shadow-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                        className="bg-primary/10 text-primary text-sm font-medium w-10 h-8 rounded-lg text-center shadow-sm outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         autoFocus
                                     />
                                 ) : (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); startEditing(p.id, qty); }}
-                                        className="bg-primary text-primary-foreground text-xs font-normal w-6 h-6 rounded-full flex items-center justify-center shadow-sm cursor-text"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            startEditing(product.id, qty);
+                                        }}
+                                        className="text-sm font-medium w-10 text-center cursor-text hover:text-primary transition-colors"
                                     >
                                         {qty}
                                     </button>
                                 )}
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        onAdjust(product.id, 1);
+                                    }}
+                                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary text-white active:scale-90 transition-transform"
+                                >
+                                    <Plus className="w-3 h-3" color="white" />
+                                </button>
                             </div>
-                        )}
-                    </div>
-                );
-            })}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
     );
 }

@@ -13,7 +13,9 @@ export default function PageHeader({ title, subtitle, backTo, rightAction }: Pro
         <header className="flex justify-between items-start px-6 pt-8 pb-4">
             <div className="flex items-center gap-3">
                 {backTo && (
-                    <button onClick={() => window.history.back()} className="text-foreground">
+                    <button
+                        onClick={() => window.history.back()}
+                        className="text-foreground cursor-pointer p-2 rounded-xl hover:bg-secondary/50 active:bg-secondary/70">
                         <ArrowLeft className="w-5 h-5" />
                     </button>
                 )}

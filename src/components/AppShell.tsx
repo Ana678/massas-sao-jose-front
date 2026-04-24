@@ -15,7 +15,6 @@ type AppShellProps = {
 
 export default function AppShell({ children }: AppShellProps) {
     const pathname = useRouterState({ select: (state) => state.location.pathname });
-    const isCaixaPage = pathname === "/wallet";
     const isNovoPedido = pathname === "/order/new";
 
     return (
@@ -23,7 +22,7 @@ export default function AppShell({ children }: AppShellProps) {
             <main className="w-full max-w-md bg-background min-h-screen relative overflow-y-auto no-scrollbar md:rounded-[2rem] shadow-2xl flex flex-col pb-24">
                 {children}
 
-                <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-background border-t border-border px-4 py-4 flex justify-around items-end z-50 md:rounded-b-[2rem]">
+                <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-background border-t border-border px-4 py-4 flex justify-around items-end z-30 md:rounded-b-[2rem]">
                     {tabs.map((tab, index) => {
                         const isActive = pathname === tab.path;
                         return (
@@ -40,7 +39,7 @@ export default function AppShell({ children }: AppShellProps) {
 
 
                                 {/* Novo Pedido button after Produção (index 1) */}
-                                {index === 1 && !isCaixaPage && !isNovoPedido && (
+                                {index === 1 && !isNovoPedido && (
                                     <Link
                                         to="/order/new"
                                         search={{ dia: undefined }}>
