@@ -20,6 +20,7 @@ import { Route as AuthenticatedFinanceRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated.expenses'
 import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated.clients'
 import { Route as AuthenticatedOrderNewRouteImport } from './routes/_authenticated.order.new'
+import { Route as AuthenticatedOrderEditRouteImport } from './routes/_authenticated.order.edit'
 import { Route as AuthenticatedClientsNewRouteImport } from './routes/_authenticated.clients.new'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated.clients.$id'
 
@@ -77,6 +78,11 @@ const AuthenticatedOrderNewRoute = AuthenticatedOrderNewRouteImport.update({
   path: '/order/new',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedOrderEditRoute = AuthenticatedOrderEditRouteImport.update({
+  id: '/order/edit',
+  path: '/order/edit',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedClientsNewRoute = AuthenticatedClientsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof AuthenticatedWalletRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/clients/new': typeof AuthenticatedClientsNewRoute
+  '/order/edit': typeof AuthenticatedOrderEditRoute
   '/order/new': typeof AuthenticatedOrderNewRoute
 }
 export interface FileRoutesByTo {
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/clients/new': typeof AuthenticatedClientsNewRoute
+  '/order/edit': typeof AuthenticatedOrderEditRoute
   '/order/new': typeof AuthenticatedOrderNewRoute
 }
 export interface FileRoutesById {
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/clients/new': typeof AuthenticatedClientsNewRoute
+  '/_authenticated/order/edit': typeof AuthenticatedOrderEditRoute
   '/_authenticated/order/new': typeof AuthenticatedOrderNewRoute
 }
 export interface FileRouteTypes {
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/clients/$id'
     | '/clients/new'
+    | '/order/edit'
     | '/order/new'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/'
     | '/clients/$id'
     | '/clients/new'
+    | '/order/edit'
     | '/order/new'
   id:
     | '__root__'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/clients/$id'
     | '/_authenticated/clients/new'
+    | '/_authenticated/order/edit'
     | '/_authenticated/order/new'
   fileRoutesById: FileRoutesById
 }
@@ -262,6 +274,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrderNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/order/edit': {
+      id: '/_authenticated/order/edit'
+      path: '/order/edit'
+      fullPath: '/order/edit'
+      preLoaderRoute: typeof AuthenticatedOrderEditRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/clients/new': {
       id: '/_authenticated/clients/new'
       path: '/new'
@@ -301,6 +320,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProductsRoute: typeof AuthenticatedProductsRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedOrderEditRoute: typeof AuthenticatedOrderEditRoute
   AuthenticatedOrderNewRoute: typeof AuthenticatedOrderNewRoute
 }
 
@@ -313,6 +333,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProductsRoute: AuthenticatedProductsRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedOrderEditRoute: AuthenticatedOrderEditRoute,
   AuthenticatedOrderNewRoute: AuthenticatedOrderNewRoute,
 }
 
