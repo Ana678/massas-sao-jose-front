@@ -1,41 +1,50 @@
-import ReactDOM from 'react-dom/client'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import './index.css'
 
-// Import o routeTree gerado
-import { routeTree } from './routeTree.gen'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { RouterProvider, createRouter } from '@tanstack/react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { routeTree } from './routeTree.gen';
+import './index.css';
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 1000 * 60 * 5,
+            retry: 1,
+        },
+    },
+});
 
 // Inicia o router
 const router = createRouter({
     routeTree,
-    basepath: '/massas-sao-jose-front',
     context: {
-        auth: undefined!, // Isso será preenchido pelo InnerApp
+        auth: undefined!,
+        queryClient,
     },
 })
 
-// Registro para segurança de tipos
 declare module '@tanstack/react-router' {
     interface Register {
         router: typeof router
     }
 }
 
-function InnerApp() {
-    const auth = useAuth()
-    // Passamos o estado de autenticação real para o contexto do router
-    return <RouterProvider router={router} context={{ auth }} />
-}
+ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+        <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+                <AppRouter />
+            </AuthProvider>
+            <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+    </React.StrictMode>,
+);
 
-const rootElement = document.getElementById('root')!
+function AppRouter() {
+    const auth = useAuth();
 
-// Forma correta e simplificada de renderizar no React 18:
-if (!rootElement.innerHTML) {
-    const root = ReactDOM.createRoot(rootElement)
-    root.render(
-        <AuthProvider>
-            <InnerApp />
-        </AuthProvider>
-    )
+    return <RouterProvider router={router} context={{ auth, queryClient }} />;
 }
