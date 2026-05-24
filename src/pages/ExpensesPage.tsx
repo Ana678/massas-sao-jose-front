@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Check, Trash2, Filter, X, Cloud } from "lucide-react";
+import { Plus, Check, Trash2, Filter, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
@@ -9,6 +9,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useExpensesList, useCreateExpense, useDeleteExpense } from "@/lib/hooks/useExpenses";
+import { useFormError } from "@/hooks/useFormError";
+import FormField from "@/components/form/FormField";
+import FormSubmitButton from "@/components/form/FormSubmitButton";
+import DateRangeInput from "@/components/form/DateRangeInput";
+import SelectField from "@/components/form/SelectField";
+import Section from "@/components/layout/Section";
+import LoadingState from "@/components/layout/LoadingState";
+import EmptyState from "@/components/layout/EmptyState";
 
 interface FormState {
     description: string;
@@ -27,20 +35,28 @@ export default function DespesasPage() {
 
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState<FormState>(emptyForm);
-    const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+    const { errors, setFieldError, clearAll: clearErrors } = useFormError();
 
     // Filtros
     const [showFilters, setShowFilters] = useState(false);
     const [catFilter, setCatFilter] = useState<CatFilter>("todas");
     const [dateFrom, setDateFrom] = useState<string>(new Date().toISOString().slice(0, 7) + "-01");
     const [dateTo, setDateTo] = useState<string>(new Date().toISOString().slice(0, 10));
+    const filterCategoryOptions = [
+        { value: "todas", label: "Todas as categorias" },
+        ...Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({ value: key, label })),
+    ];
+    const formCategoryOptions = Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({ value: key, label }));
 
     function submit() {
-        const e: Partial<Record<keyof FormState, string>> = {};
-        if (!form.description.trim() || form.description.trim().length < 2) e.description = "Descrição obrigatória";
-        if (form.value <= 0) e.value = "Valor obrigatório";
-        setErrors(e);
-        if (Object.keys(e).length > 0) {
+        const newErrors: Record<string, string> = {};
+        if (!form.description.trim() || form.description.trim().length < 2) newErrors.description = "Descrição obrigatória (min. 2 caracteres)";
+        if (form.value <= 0) newErrors.value = "Valor obrigatório (maior que 0)";
+
+        if (Object.keys(newErrors).length > 0) {
+            Object.entries(newErrors).forEach(([field, message]) => {
+                setFieldError(field as keyof FormState, message);
+            });
             toast.error("Verifique os campos");
             return;
         }
@@ -53,7 +69,7 @@ export default function DespesasPage() {
             onSuccess: () => {
                 setShowForm(false);
                 setForm(emptyForm);
-                setErrors({});
+                clearErrors();
             }
         });
     }
@@ -113,7 +129,7 @@ export default function DespesasPage() {
             />
 
             {showFilters && (
-                <section className="px-6 pb-3">
+                <Section spacing="md" className="pb-3">
                     <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
                         <div className="flex items-center justify-between">
                             <p className="text-foreground text-sm font-normal">Filtrar despesas</p>
@@ -122,119 +138,78 @@ export default function DespesasPage() {
                             </button>
                         </div>
 
-                        <div>
-                            <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">Categoria</label>
-                            <select
-                                value={catFilter}
-                                onChange={(e) => setCatFilter(e.target.value as CatFilter)}
-                                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            >
-                                <option value="todas">Todas as categorias</option>
-                                {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => (
-                                    <option key={k} value={k}>{v}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <SelectField
+                            label="Categoria"
+                            value={catFilter}
+                            onChange={(value) => setCatFilter(value as CatFilter)}
+                            options={filterCategoryOptions}
+                        />
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">De</label>
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">Até</label>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                />
-                            </div>
-                        </div>
+                        <DateRangeInput
+                            from={dateFrom}
+                            to={dateTo}
+                            onFromChange={setDateFrom}
+                            onToChange={setDateTo}
+                            fromLabel="De"
+                            toLabel="Até"
+                        />
                     </div>
-                </section>
+                </Section>
             )}
 
             {showForm && (
-                <section className="px-6 pb-4 animate-slide-up">
+                <Section className="animate-slide-up">
                     <div className="bg-card rounded-2xl p-4 border border-border space-y-3 shadow-sm">
-                        <div>
-                            <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
-                                Descrição <span className="text-destructive">*</span>
-                            </label>
-                            <input
-                                placeholder="Ex: Farinha de trigo"
-                                value={form.description}
-                                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                                maxLength={100}
-                                className={`w-full bg-background border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${errors.description ? "border-destructive" : "border-border"}`}
-                            />
-                            {errors.description && <p className="text-destructive text-xs mt-1">{errors.description}</p>}
-                        </div>
+                        <FormField
+                            label="Descrição"
+                            value={form.description}
+                            onChange={(val) => setForm((f) => ({ ...f, description: val as string }))}
+                            error={errors.description}
+                            placeholder="Ex: Farinha de trigo"
+                            required
+                            maxLength={100}
+                        />
 
-                        <div>
-                            <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
-                                Valor (R$) <span className="text-destructive">*</span>
-                            </label>
-                            <input
-                                inputMode="numeric"
-                                placeholder="0"
-                                value={form.value}
-                                onChange={(e) => setForm((f) => ({ ...f, value: parseFloat(e.target.value) || 0 }))}
-                                className={`w-full bg-background border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${errors.value ? "border-destructive" : "border-border"}`}
-                            />
-                            {errors.value && <p className="text-destructive text-xs mt-1">{errors.value}</p>}
-                        </div>
+                        <FormField
+                            label="Valor (R$)"
+                            value={form.value}
+                            onChange={(val) => setForm((f) => ({ ...f, value: parseFloat(val as string) || 0 }))}
+                            error={errors.value}
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="0"
+                            required
+                        />
 
-                        <div>
-                            <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
-                                Categoria
-                            </label>
-                            <select
-                                value={form.category}
-                                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            >
-                                {Object.entries(EXPENSE_CATEGORIES).map(([k, v]) => (
-                                    <option key={k} value={k}>{v}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <SelectField
+                            label="Categoria"
+                            value={form.category}
+                            onChange={(value) => setForm((f) => ({ ...f, category: value }))}
+                            options={formCategoryOptions}
+                            selectClassName="px-4 py-3"
+                        />
 
-                        <button
+                        <FormSubmitButton
                             onClick={submit}
+                            loading={isCreating}
                             disabled={isCreating}
-                            className="w-full bg-accent text-accent-foreground rounded-xl p-3 flex items-center justify-center gap-2 font-normal transition-transform active:scale-[0.98] disabled:opacity-50"
+                            variant="accent"
+                            icon={Check}
                         >
-                            {isCreating ? (
-                                "Salvando..."
-                            ) : (
-                                <>
-                                    <Check className="w-4 h-4" />
-                                    Lançar Despesa
-                                </>
-                            )}
-                        </button>
+                            Lançar Despesa
+                        </FormSubmitButton>
                     </div>
-                </section>
+                </Section>
             )}
 
             {/* Lista de Despesas */}
-            <section className="px-6 pb-6 space-y-2">
+            <Section spacing="lg" className="space-y-2">
                 {isLoading && (
-                    <div className="flex flex-col items-center justify-center py-10 text-muted-foreground gap-3">
-                        <Cloud className="w-8 h-8 animate-pulse text-primary" />
-                        <p className="text-sm">Buscando despesas...</p>
-                    </div>
+                    <LoadingState message="Buscando despesas..." />
                 )}
 
                 {!isLoading && filtered.length === 0 && (
-                    <p className="text-muted-foreground text-sm text-center py-4">Nenhuma despesa encontrada</p>
+                    <EmptyState message="Nenhuma despesa encontrada" />
                 )}
 
                 {!isLoading && [...filtered].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((e) => (
@@ -275,7 +250,7 @@ export default function DespesasPage() {
                         </div>
                     </div>
                 ))}
-            </section>
+            </Section>
         </div>
     );
 }

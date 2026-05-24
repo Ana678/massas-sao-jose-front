@@ -35,15 +35,22 @@ export interface OrderItem {
 
 export interface Order {
     id: string;
-    //clientId: string;
-    clientName: string;
-    products: OrderItem[];
-    total: number;
-    paymentMethod: string;
-    //status: 'preparando' | 'saiu_entrega' | 'concluido' | 'cancelado' | 'pendente_sync';
+    clientId: string;
     createdAt: string;
-    //isPreOrder: boolean;
+    clientName: string;
+    enabled: boolean;
+    disabledUntil: string | null;
+    total: number;
     isPaid: boolean;
+    paymentMethod: string;
+    status: string;
+    products: {
+        id: string;
+        name: string;
+        price: number;
+        quantity: number;
+        subtotal: number;
+    }[];
 }
 
 export interface Expense {

@@ -1,8 +1,12 @@
 import { useMemo, useState } from "react";
-import { Plus, Search, User, Building2, Users } from "lucide-react";
+import { Plus, User, Building2, Users } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ClientCard from "@/components/ClientCard";
 import PhoneButton from "@/components/PhoneButton";
+import SearchInput from "@/components/form/SearchInput";
+import SegmentedControl from "@/components/form/SegmentedControl";
+import EmptyState from "@/components/layout/EmptyState";
+import LoadingState from "@/components/layout/LoadingState";
 import { Link } from '@tanstack/react-router';
 import { useClients } from "@/lib/hooks/useClients";
 import { isBusinessClient } from "@/lib/clientSchema";
@@ -32,14 +36,14 @@ export default function ClientsPage() {
         );
     });
 
-    const tabs: { key: Filter; label: string; icon: typeof Users; count: number }[] = [
+    const tabs = [
         { key: "all", label: "Todos", icon: Users, count: counts.all },
         { key: "person", label: "Pessoas", icon: User, count: counts.person },
         { key: "business", label: "Empresas", icon: Building2, count: counts.business },
     ];
 
 
-    if (isLoading) return <div className="h-[100vh] flex items-center justify-center p-6 text-muted-foreground"><p>Carregando clientes...</p></div>;
+    if (isLoading) return <LoadingState message="Carregando clientes..." className="h-screen" />;
 
 
     return (
@@ -63,47 +67,24 @@ export default function ClientsPage() {
 
             {/* Search */}
             <section className="px-6 pb-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                        type="text"
-                        placeholder="Buscar nome, razão social ou cidade..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        maxLength={80}
-                        className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                </div>
+                <SearchInput
+                    placeholder="Buscar nome, razão social ou cidade..."
+                    value={search}
+                    onChange={setSearch}
+                />
             </section>
             {/* Filter tabs */}
             <section className="px-6 pb-4">
-                <div className="flex gap-2">
-                    {tabs.map((t) => {
-                        const Icon = t.icon;
-                        const active = filter === t.key;
-                        return (
-                            <button
-                                key={t.key}
-                                onClick={() => setFilter(t.key)}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs border transition-colors ${active
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-card text-foreground border-border"
-                                    }`}
-                            >
-                                <Icon className="w-3.5 h-3.5" />
-                                <span>{t.label}</span>
-                                <span className={`text-[10px] ${active ? "opacity-80" : "text-muted-foreground"}`}>
-                                    {t.count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <SegmentedControl
+                    tabs={tabs}
+                    activeKey={filter}
+                    onChange={(key) => setFilter(key as Filter)}
+                />
             </section>
             {/* Client list */}
             {
                 filtered.length === 0 ? (
-                    <div className="h-[50vh] flex items-center justify-center p-6 text-muted-foreground">Nenhum cliente encontrado</div>
+                    <EmptyState message="Nenhum cliente encontrado" />
                 )
                     : (
                         <section className="px-6 grow space-y-2">

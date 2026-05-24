@@ -1,34 +1,34 @@
 import { useState } from "react";
-import { Check } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ClientForm, { emptyClientForm, validateClientForm, type ClientFormValues } from "@/components/ClientForm";
 import type { ClientFormType } from "@/lib/clientSchema";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useSaveClient } from "@/lib/hooks/useClients";
+import { useFormError } from "@/hooks/useFormError";
+import FormSubmitButton from "@/components/form/FormSubmitButton";
 
 export default function NovoClientePage() {
 
     const navigate = useNavigate();
     const { mutate: saveClient, isPending } = useSaveClient();
+    const { errors, mapErrors } = useFormError();
 
     const [type, setType] = useState<ClientFormType>("simple");
     const [values, setValues] = useState<ClientFormValues>(emptyClientForm);
-    const [errors, setErrors] = useState<Partial<Record<keyof ClientFormValues, string>>>({});
 
     function submit() {
         const result = validateClientForm(values, type);
         if (!result.ok) {
-            setErrors(result.errors);
+            mapErrors({ response: { data: { fieldErrors: result.errors } } });
             toast.error("Verifique os campos destacados");
             return;
         }
-        setErrors({});
 
         const clientPayload = {
 
             name: values.name.trim(),
-            phone: values.phone.trim(),
+            phone: values.phone.trim().replace(/\D/g, ''),
             city: values.city.trim(),
             state: values.state.trim().toUpperCase(),
             address: values.address.trim(),
@@ -47,6 +47,18 @@ export default function NovoClientePage() {
                 navigate({ to: '/clients' });
             },
             onError: (error: any) => {
+                // Map field mapping for API response
+                const fieldMapping = {
+                    cityId: "city",
+                    needsInvoice: "needFiscalNote",
+                };
+                mapErrors(error, fieldMapping);
+
+                if (Object.keys(errors).length > 0) {
+                    toast.error("Corrija os campos destacados");
+                    return;
+                }
+
                 toast.error(error.response?.data?.message || "Erro ao cadastrar cliente");
             }
         });
@@ -59,20 +71,20 @@ export default function NovoClientePage() {
             <section className="px-6 pb-6 space-y-4">
                 <ClientForm
                     type={type}
-                    onTypeChange={(t) => { setType(t); setErrors({}); }}
+                    onTypeChange={(t) => { setType(t); }}
                     values={values}
                     onChange={setValues}
                     errors={errors}
                 />
 
-                <button
+                <FormSubmitButton
                     onClick={submit}
+                    loading={isPending}
                     disabled={isPending}
-                    className="w-full bg-primary text-primary-foreground rounded-2xl p-4 flex items-center justify-center gap-2 font-normal mt-2 transition-transform active:scale-[0.98]"
+                    variant="primary"
                 >
-                    <Check className="w-5 h-5" />
-                    {isPending ? "Salvando..." : "Cadastrar Cliente"}
-                </button>
+                    Cadastrar Cliente
+                </FormSubmitButton>
             </section>
         </>
     );

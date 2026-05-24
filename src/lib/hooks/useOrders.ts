@@ -6,6 +6,7 @@ interface CreateOrderInput {
     clientId: string;
     paymentMethod: string;
     isPaid: boolean;
+    status: string;
     products: {
         productId: string;
         quantity: number;
@@ -16,6 +17,7 @@ interface UpdateOrderInput {
     id: string;
     paymentMethod: string;
     isPaid: boolean;
+    status: string;
     products: {
         productId: string;
         quantity: number;
@@ -24,6 +26,7 @@ interface UpdateOrderInput {
 
 export interface OrderResponse {
     id: string;
+    clientId: string;
     createdAt: string;
     clientName: string;
     enabled: boolean;
@@ -31,6 +34,7 @@ export interface OrderResponse {
     total: number;
     isPaid: boolean;
     paymentMethod: string;
+    status: string;
     products: {
         id: string;
         name: string;
@@ -51,6 +55,34 @@ export function useOrdersList(page = 1, limit = 100) {
         },
     });
 }
+
+export function useOrderByID(id: string) {
+    return useQuery({
+        queryKey: ['orders', id],
+        queryFn: async () => {
+            const response = await api.get<OrderResponse>(`/orders/${id}`);
+            return response.data;
+        },
+    });
+}
+
+export function useOrdersListByCity(cityNames: string[]) {
+    return useQuery({
+        queryKey: ['orders', cityNames],
+        queryFn: async () => {
+            const response = await api.post<OrderResponse[]>(
+                '/orders/by-cities',
+                {
+                    cityNames,
+                }
+            );
+
+            return response.data;
+        },
+        enabled: cityNames.length > 0,
+    });
+}
+
 
 export function useCreateOrder() {
     const queryClient = useQueryClient();

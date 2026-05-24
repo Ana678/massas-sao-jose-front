@@ -2,6 +2,9 @@ import { ALL_CITIES } from "@/lib/data";
 import { getClientSchema, type ClientFormType } from "@/lib/clientSchema";
 import { maskPhone, maskCEP, maskCNPJ, maskIE, maskUF } from "@/lib/masks";
 import { Building, User } from "lucide-react";
+import FormField from "@/components/form/FormField";
+import Checkbox from "@/components/form/Checkbox";
+import SectionLabel from "@/components/form/SectionLabel";
 
 export interface ClientFormValues {
     name: string;
@@ -100,9 +103,9 @@ export default function ClientForm({ type, onTypeChange, values, onChange, error
             )}
 
             <div>
-                <label className="text-muted-foreground text-xs uppercase tracking-widest mb-2 block">
+                <SectionLabel className="mb-2 block">
                     Cidade <span className="text-destructive">*</span>
-                </label>
+                </SectionLabel>
                 <div className="flex flex-wrap gap-2">
                     {ALL_CITIES.map((city) => (
                         <button
@@ -124,40 +127,27 @@ export default function ClientForm({ type, onTypeChange, values, onChange, error
             <div className="flex flex-wrap gap-3">
                 {fields.map((f) => (
                     <div key={f.key} className={f.half ? "w-[calc(50%-0.375rem)]" : "w-full"}>
-                        <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
-                            {f.label} {f.required && <span className="text-destructive">*</span>}
-                        </label>
-                        <input
-                            type={f.type || "text"}
-                            inputMode={f.inputMode}
+                        <FormField
+                            label={f.label}
                             value={values[f.key] as string}
-                            onChange={(e) => {
-                                const raw = e.target.value;
-                                const next = f.mask ? f.mask(raw) : raw;
-                                set(f.key, next as never);
-                            }}
+                            onChange={(val) => set(f.key, val as never)}
+                            error={errors[f.key]}
                             placeholder={f.placeholder}
-                            className={`w-full bg-card border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground
-                                focus:outline-none focus:ring-2 focus:ring-primary/30 ${errors[f.key] ? "border-destructive" : "border-border"
-                                }`}
+                            required={f.required}
+                            mask={f.mask}
+                            inputMode={f.inputMode}
+                            type={f.type}
                         />
-                        {errors[f.key] && <p className="text-destructive text-xs mt-1">{errors[f.key]}</p>}
                     </div>
                 ))}
             </div>
 
-            <label className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3 cursor-pointer">
-                <input
-                    type="checkbox"
-                    checked={values.needFiscalNote}
-                    onChange={(e) => set("needFiscalNote", e.target.checked)}
-                    className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                />
-                <div>
-                    <span className="text-foreground text-sm">Cliente precisa de Nota Fiscal</span>
-                    <p className="text-muted-foreground text-xs mt-0.5">Marque para clientes que exigem NF-e</p>
-                </div>
-            </label>
+            <Checkbox
+                checked={values.needFiscalNote}
+                onChange={(checked) => set("needFiscalNote", checked)}
+                label="Cliente precisa de Nota Fiscal"
+                description="Marque para clientes que exigem NF-e"
+            />
         </div>
     );
 }

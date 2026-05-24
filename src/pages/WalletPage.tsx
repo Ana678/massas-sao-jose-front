@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { useOrdersList } from "@/lib/hooks/useOrders";
 import { useExpensesList } from "@/lib/hooks/useExpenses";
+import StatCard from "@/components/ui/StatCard";
+import DualStatCard from "@/components/ui/DualStatCard";
 
 export default function CaixaPage() {
     const { data: orders = [] } = useOrdersList();
@@ -59,38 +61,29 @@ export default function CaixaPage() {
             />
 
             <section className="px-6 py-2">
-                <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                    <div className="p-5 border-b border-border bg-secondary/45">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-muted-foreground text-xs uppercase tracking-widest mb-2">Saldo do mês</p>
-                                <p className={`text-4xl tracking-tight font-display leading-none ${isPositive ? "text-primary" : "text-destructive"}`}>
-                                    {formatCurrency(profit)}
-                                </p>
-                            </div>
-                            <div className={`rounded-xl px-3 py-2 text-xs border ${isPositive ? "bg-primary/10 text-primary border-primary/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
-                                {isPositive ? "Caixa positivo" : "Atenção ao caixa"}
-                            </div>
-                        </div>
-                    </div>
+                <StatCard
+                    label="Saldo do mês"
+                    value={formatCurrency(profit)}
+                    subtitle={isPositive ? "Caixa positivo" : "Atenção ao caixa"}
+                    variant={isPositive ? "success" : "destructive"}
+                />
+            </section>
 
-                    <div className="grid grid-cols-2 divide-x divide-border text-muted-foreground">
-                        <div className="p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <TrendingUp className="w-4 h-4" />
-                                <span className="text-xs uppercase tracking-widest">Entrou</span>
-                            </div>
-                            <p className="text-lg font-normal tracking-tight text-primary/70">{formatCurrency(revenue)}</p>
-                        </div>
-                        <div className="p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <TrendingDown className="w-4 h-4" />
-                                <span className="text-xs uppercase tracking-widest">Saiu</span>
-                            </div>
-                            <p className="text-lg font-normal tracking-tight text-destructive/70">- {formatCurrency(costs)}</p>
-                        </div>
-                    </div>
-                </div>
+            <section className="px-6 py-2">
+                <DualStatCard
+                    left={{
+                        label: "Entrou",
+                        value: formatCurrency(revenue),
+                        icon: TrendingUp,
+                        variant: "success"
+                    }}
+                    right={{
+                        label: "Saiu",
+                        value: formatCurrency(costs),
+                        icon: TrendingDown,
+                        variant: "destructive"
+                    }}
+                />
             </section>
 
             <section className="px-6 py-2">

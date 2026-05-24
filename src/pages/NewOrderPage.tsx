@@ -3,6 +3,8 @@ import { Check, Calendar, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProductGrid from "@/components/ProductGrid";
 import PaymentSelector from "@/components/PaymentSelector";
+import SectionLabel from "@/components/form/SectionLabel";
+import LoadingState from "@/components/layout/LoadingState";
 import { DELIVERY_ROUTES, type DayOfWeek } from "@/lib/data";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
@@ -13,6 +15,8 @@ import { useProducts } from "@/lib/hooks/useProduct";
 import { useClients } from "@/lib/hooks/useClients";
 import { useCreateOrder } from "@/lib/hooks/useOrders";
 import type { Client } from "@/lib/types";
+
+type OrderType = "ENCOMENDA" | "PREVISAO_ROTA" | "PRONTA_ENTREGA";
 
 export default function NewOrderPage() {
     const navigate = useNavigate();
@@ -65,6 +69,7 @@ export default function NewOrderPage() {
 
     const total = lineItems.reduce((s, i) => s + i.quantity * i.price, 0);
     const totalItems = lineItems.reduce((s, i) => s + i.quantity, 0);
+    const orderType: OrderType = dayParam ? "PREVISAO_ROTA" : "ENCOMENDA";
 
     function submit() {
         if (!selectedClientId || lineItems.length === 0) return;
@@ -72,7 +77,9 @@ export default function NewOrderPage() {
         // Payload formatado para a API
         const payload = {
             clientId: selectedClientId,
+            type: orderType,
             paymentMethod: payment,
+            deliveryFee: 0,
             isPaid,
             products: lineItems.map((item) => ({
                 productId: item.productId,
@@ -88,7 +95,7 @@ export default function NewOrderPage() {
     }
 
     if (loadingClients || loadingProducts) {
-        return <div className="p-6 text-center text-muted-foreground mt-20">Carregando tela de vendas...</div>;
+        return <LoadingState message="Carregando tela de vendas..." className="p-6 text-center mt-20" />;
     }
 
     useEffect(() => {
@@ -134,12 +141,12 @@ export default function NewOrderPage() {
             </section>
 
             <section className="px-4 pb-6 flex flex-col gap-2">
-                <label className="text-muted-foreground text-xs uppercase tracking-widest mt-4">Selecione os Itens</label>
+                <SectionLabel className="mt-4">Selecione os Itens</SectionLabel>
                 <ProductGrid products={apiProducts} quantities={cart} onTap={tapProduct} onAdjust={adjustquantity} />
             </section>
 
             <section className="px-4 pb-3 flex flex-col gap-2">
-                <label className="text-muted-foreground text-xs uppercase tracking-widest mt-4">Forma de Pagamento</label>
+                <SectionLabel className="mt-4">Forma de Pagamento</SectionLabel>
                 <PaymentSelector value={payment} onChange={setPayment} />
 
                 <div className="flex items-center justify-between mt-2 bg-card border border-border rounded-xl px-4 py-3">

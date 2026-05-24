@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Lock, Mail, ShieldCheck, LogIn } from "lucide-react";
+import { Lock, Mail, ShieldCheck } from "lucide-react";
 import Logo from "@/assets/logo.svg?react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
+import InputWithIcon from "@/components/form/InputWithIcon";
+import FormSubmitButton from "@/components/form/FormSubmitButton";
 
 const LoginPage = () => {
     const { login, isAuthenticated } = useAuth();
@@ -51,45 +53,27 @@ const LoginPage = () => {
 
                 {/* Formulário */}
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="mb-2 ml-1 block text-xs uppercase tracking-widest text-[#1E1C18]">
-                            Usuário
-                        </label>
-                        <div className="relative">
-                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                                <Mail className="h-[18px] w-[18px] text-[#C8B99A]" />
-                            </div>
-                            <input
-                                type="text"
-                                required
-                                placeholder="usuário"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="block w-full rounded-xl border border-[#C8B99A]/30 bg-[#E8E0D3] p-4 pl-11 text-sm text-[#1E1C18] outline-none transition-all placeholder:text-[#C8B99A]/60 focus:border-[#132245] focus:ring-1 focus:ring-[#132245] focus:bg-white"
-                                style={{ fontWeight: 400 }}
-                            />
-                        </div>
-                    </div>
+                    <InputWithIcon
+                        icon={Mail}
+                        type="text"
+                        placeholder="usuário"
+                        value={email}
+                        onChange={setEmail}
+                        label="Usuário"
+                        required
+                        className="text-[#1E1C18]"
+                    />
 
-                    <div>
-                        <label className="mb-2 ml-1 block text-xs uppercase tracking-widest text-[#1E1C18]">
-                            Senha
-                        </label>
-                        <div className="relative">
-                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                                <Lock className="h-[18px] w-[18px] text-[#C8B99A]" />
-                            </div>
-                            <input
-                                type="password"
-                                required
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="block w-full rounded-xl border border-[#C8B99A]/30 bg-[#E8E0D3] p-4 pl-11 text-sm text-[#1E1C18] outline-none transition-all placeholder:text-[#C8B99A]/60 focus:border-[#132245] focus:ring-1 focus:ring-[#132245] focus:bg-white"
-                                style={{ fontWeight: 400 }}
-                            />
-                        </div>
-                    </div>
+                    <InputWithIcon
+                        icon={Lock}
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={setPassword}
+                        label="Senha"
+                        required
+                        className="text-[#1E1C18]"
+                    />
 
                     {error && (
                         <p className="text-center text-sm text-red-600">
@@ -97,16 +81,16 @@ const LoginPage = () => {
                         </p>
                     )}
 
-                    <button
-                        type="submit"
+                    <FormSubmitButton
+                        onClick={() => handleSubmit(new Event('submit') as any)}
+                        loading={loading}
                         disabled={loading}
-                        className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#132245] p-4 text-[#F2EDE4] shadow-sm transition-transform active:scale-[0.98] disabled:opacity-70"
+                        variant="primary"
+                        fullWidth
+                        className="mt-8 bg-[#132245] text-[#F2EDE4] rounded-xl"
                     >
-                        <span className="text-base tracking-wide" style={{ fontWeight: 400 }}>
-                            {loading ? "Entrando…" : "Entrar"}
-                        </span>
-                        {!loading && <LogIn className="h-[18px] w-[18px]" />}
-                    </button>
+                        Entrar
+                    </FormSubmitButton>
                 </form>
 
                 {/* Rodapé */}
