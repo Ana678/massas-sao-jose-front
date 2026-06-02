@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { Client, Order } from '@/lib/types';
+import type { Client } from '@/lib/types';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 

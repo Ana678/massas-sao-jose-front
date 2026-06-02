@@ -1,4 +1,4 @@
-import { Cloud, Icon } from "lucide-react";
+import { Cloud } from "lucide-react";
 
 interface EmptyStateProps {
 	icon?: React.ComponentType<{ className?: string }>;
@@ -10,8 +10,7 @@ interface EmptyStateProps {
 export default function EmptyState({
 	message,
 	action,
-	className = "h-[50vh]",
-    icon
+	className = "h-[50vh]"
 }: EmptyStateProps) {
 	return (
 		<div
