@@ -65,7 +65,6 @@ export default function ClientsPage() {
                 }
             />
 
-            {/* Search */}
             <section className="px-6 pb-4">
                 <SearchInput
                     placeholder="Buscar nome, razão social ou cidade..."
@@ -73,7 +72,6 @@ export default function ClientsPage() {
                     onChange={setSearch}
                 />
             </section>
-            {/* Filter tabs */}
             <section className="px-6 pb-4">
                 <SegmentedControl
                     tabs={tabs}
@@ -81,7 +79,6 @@ export default function ClientsPage() {
                     onChange={(key) => setFilter(key as Filter)}
                 />
             </section>
-            {/* Client list */}
             {
                 filtered.length === 0 ? (
                     <EmptyState message="Nenhum cliente encontrado" />

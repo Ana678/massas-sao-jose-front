@@ -37,8 +37,6 @@ export default function AppShell({ children }: AppShellProps) {
                                     </button>
                                 </Link>
 
-
-                                {/* Novo Pedido button after Produção (index 1) */}
                                 {index === 1 && !isNovoPedido && (
                                     <Link
                                         to="/order/new"

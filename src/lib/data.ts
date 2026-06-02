@@ -25,7 +25,6 @@ export const EXPENSE_CATEGORIES = {
 };
 
 
-// Local storage helpers — version bump forces refresh of defaults
 const DATA_VERSION = '4';
 const STORAGE_KEYS = {
     products: 'msj_products',
@@ -37,7 +36,6 @@ const STORAGE_KEYS = {
     version: 'msj_version',
 };
 
-// Skipped clients: Record<dayKey, clientId[]> where dayKey = DayOfWeek or YYYY-MM-DD
 export function getSkippedClients(): Record<string, string[]> {
     try {
         const data = localStorage.getItem(STORAGE_KEYS.skippedClients);
@@ -61,7 +59,6 @@ export function toggleSkipClient(dayKey: string, clientId: string) {
     return all;
 }
 
-// Clear old data on version change
 if (typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.version) !== DATA_VERSION) {
     localStorage.removeItem(STORAGE_KEYS.products);
     localStorage.removeItem(STORAGE_KEYS.clients);
@@ -92,7 +89,6 @@ export function saveRouteOverrides(r: RouteOverride[]) { save(STORAGE_KEYS.route
 export function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 export function getTodayRoute(): string[] {
-    // Check for override first
     const todayStr = new Date().toISOString().slice(0, 10);
     const overrides = getRouteOverrides();
     const override = overrides.find((o) => o.date === todayStr);
@@ -101,7 +97,6 @@ export function getTodayRoute(): string[] {
     const days: DayOfWeek[] = ['segunda', 'segunda', 'quarta', 'quinta', 'sexta', 'sabado', 'segunda'];
     const jsDay = new Date().getDay(); // 0=Sun
     const mapped: DayOfWeek = days[jsDay === 0 ? 6 : jsDay - 1] || 'segunda';
-    // For demo, if today has no route, show Thursday (most cities)
     return DELIVERY_ROUTES[mapped] || DELIVERY_ROUTES.quinta;
 }
 

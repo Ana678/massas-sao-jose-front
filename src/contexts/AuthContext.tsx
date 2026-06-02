@@ -1,45 +1,66 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
 
-const VALID_EMAIL = "admin";
-const VALID_PASSWORD = "massas@saojose";
-
-export interface AuthContextType {
-    isAuthenticated: boolean;
-    login: (email: string, password: string) => boolean;
-    logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
-export const useAuth = () => {
-    const ctx = useContext(AuthContext);
-    if (!ctx) throw new Error("useAuth must be inside AuthProvider");
-    return ctx;
+type User = {
+	id: string;
+	name: string;
+	email?: string;
+	role: "ADMIN" | "ENTREGADOR";
 };
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(
-        () => localStorage.getItem("pm_auth") === "1"
-    );
+export type AuthContextType = {
+	user: User | null;
+	isAuthenticated: boolean;
+	isAdmin: boolean;
+	login: (userData: User, access: string, refresh: string) => void;
+	logout: () => void;
+};
 
-    const login = useCallback((user: string, password: string) => {
-        if (user.trim().toLowerCase() === VALID_EMAIL && password === VALID_PASSWORD) {
-            localStorage.setItem("pm_auth", "1");
-            setIsAuthenticated(true);
-            return true;
-        }
-        return false;
-    }, []);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-    const logout = useCallback(() => {
-        localStorage.removeItem("pm_auth");
-        setIsAuthenticated(false);
-    }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+	const [user, setUser] = useState<User | null>(null);
 
-    return (
-        <AuthContext.Provider value={{ isAuthenticated, login, logout }
-        }>
-            {children}
-        </AuthContext.Provider>
-    );
+	useEffect(() => {
+		const storedUser = localStorage.getItem("@massas-sao-jose:user");
+		if (storedUser) {
+			setUser(JSON.parse(storedUser));
+		}
+	}, []);
+
+	const login = (userData: User, access: string, refresh: string) => {
+		setUser(userData);
+		localStorage.setItem("@massas-sao-jose:user", JSON.stringify(userData));
+		localStorage.setItem("@massas-sao-jose:access_token", access);
+		localStorage.setItem("@massas-sao-jose:refresh_token", refresh);
+	};
+
+	const logout = () => {
+		setUser(null);
+		localStorage.removeItem("@massas-sao-jose:user");
+		localStorage.removeItem("@massas-sao-jose:access_token");
+		localStorage.removeItem("@massas-sao-jose:refresh_token");
+		window.location.href = "/login";
+	};
+
+	return (
+		<AuthContext.Provider
+			value={{
+				user,
+				isAuthenticated: !!user,
+				isAdmin: user?.role === "ADMIN",
+				login,
+				logout,
+			}}
+		>
+			{children}
+		</AuthContext.Provider>
+	);
+}
+
+export const useAuth = () => {
+	const context = useContext(AuthContext);
+	if (!context)
+		throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+	return context;
 };

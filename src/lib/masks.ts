@@ -1,5 +1,3 @@
-// Máscaras simples para inputs (sem dependências externas)
-
 export function maskPhone(value: string): string {
     const d = value.replace(/\D/g, "").slice(0, 11);
     if (d.length === 0) return "";
@@ -30,7 +28,6 @@ export function maskCNPJ(value: string): string {
 }
 
 export function maskIE(value: string): string {
-    // Mantém dígitos, pontos, hífens e barras
     return value.replace(/[^\d.\-/]/g, "").slice(0, 20);
 }
 

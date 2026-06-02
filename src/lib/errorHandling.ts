@@ -7,13 +7,6 @@ export interface FieldErrors {
   [key: string]: string;
 }
 
-/**
- * Maps API error responses to field-level errors
- * Supports multiple formats:
- * 1. error.response.data.fieldErrors: { email: "Email inválido" }
- * 2. error.response.data.errors: [{ path: ["email"], message: "..." }]
- * 3. error.response.data.issues: [{ path: ["email"], message: "..." }]
- */
 export function mapApiErrors(
   error: any,
   fieldMapping?: Record<string, string>
@@ -23,10 +16,6 @@ export function mapApiErrors(
 
   const mapped: FieldErrors = {};
 
-  /**
-   * Helper to map field name (e.g., "cityId" → "city")
-   * and assign error message
-   */
   const assignError = (field: string, message: unknown) => {
     const target = fieldMapping?.[field] ?? field;
     if (typeof message === "string") {
@@ -38,14 +27,12 @@ export function mapApiErrors(
     }
   };
 
-  // Format 1: Direct fieldErrors object
   if (data.fieldErrors && typeof data.fieldErrors === "object" && !Array.isArray(data.fieldErrors)) {
     for (const [field, message] of Object.entries(data.fieldErrors)) {
       assignError(field, message);
     }
   }
 
-  // Format 2: Zod/validation errors array
   if (Array.isArray(data.errors)) {
     for (const issue of data.errors) {
       const field = issue?.path?.[0];
@@ -55,7 +42,6 @@ export function mapApiErrors(
     }
   }
 
-  // Format 3: issues array (alternative zod format)
   if (Array.isArray(data.issues)) {
     for (const issue of data.issues) {
       const field = issue?.path?.[0];

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Cloud, Plus, AlertCircle } from "lucide-react";
 import { Link } from '@tanstack/react-router';
+import { toast } from "sonner";
 import Logo from "@/assets/logo.svg?react";
 import { type Client } from "@/lib/types";
 import { formatCurrency, getCitiesForToday } from "@/lib/utils";
 import { useClients } from "@/lib/hooks/useClients";
 import { useProducts } from "@/lib/hooks/useProduct";
 import { useOrdersListByCity } from "@/lib/hooks/useOrders";
-import { getRouteOverrides, getSkippedClients } from "@/lib/data";
+import { getRouteOverrides, getSkippedClients, toggleSkipClient } from "@/lib/data";
 
 import { useRouteManager } from "@/lib/hooks/useRouteManager";
 import { ClientRouteCard } from "@/components/route/ClientRouteCard";
@@ -26,7 +27,7 @@ export default function RoutesPage() {
 
     const { data: allClients = [], isLoading: loadingClients } = useClients();
     const { data: products = [], isLoading: loadingProducts } = useProducts();
-    const { data: orders = [], isLoading: loadingOrders } = useOrdersListByCity(todayCities);
+    const { data: orders = [], isLoading: loadingOrders } = useOrdersListByCity(todayCities, todayStr);
 
     const [skipped, setSkipped] = useState(getSkippedClients());
     const skippedIds = skipped[skipKey] || [];
@@ -36,12 +37,22 @@ export default function RoutesPage() {
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [deliveryClient, setDeliveryClient] = useState<Client | null>(null);
 
+    const handleToggleSkip = (clientId: string) => {
+        const updated = toggleSkipClient(skipKey, clientId);
+        setSkipped({ ...updated });
+
+        if (skippedIds.includes(clientId)) {
+            toast.success("Cliente restaurado na rota de hoje");
+        } else {
+            toast.success("Cliente pulado");
+        }
+    };
+
     useEffect(() => {
         if (allClients.length > 0 && orders.length > 0) {
             routeManager.initializeQuantities();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allClients.length, orders.length]); // Gatilhos reduzidos para evitar loop
+    }, [allClients.length, orders.length]);
 
     const isLoading = loadingClients || loadingProducts || loadingOrders;
 
@@ -56,7 +67,6 @@ export default function RoutesPage() {
 
     return (
         <>
-            {/* Header Reduzido */}
             <header className="flex justify-between items-start px-6 pt-8 pb-4">
                 <div className="font-display leading-[1.1] tracking-tighter text-xl">
                     <Logo className="h-10 w-auto object-contain" />
@@ -75,7 +85,6 @@ export default function RoutesPage() {
                 </div>
             </header>
 
-            {/* Saudação e Status */}
             <section className="px-6 pt-2 pb-4">
                 <h1 className="font-display text-3xl tracking-tight leading-tight">
                     {today.toLocaleDateString('pt-BR', { weekday: 'long' }).replace('-feira', '')}, <br />
@@ -107,7 +116,6 @@ export default function RoutesPage() {
                 </div>
             </section>
 
-            {/* Ações Rápidas */}
             <section className="px-6 py-4">
                 <Link to="/order/new" search={{ dia: undefined }}>
                     <button className="w-full bg-accent text-accent-foreground rounded-2xl p-4 flex items-center justify-center gap-3 shadow-sm">
@@ -129,7 +137,6 @@ export default function RoutesPage() {
                 )}
             </section>
 
-            {/* Lista de Rota */}
             <section className="px-6 pt-2 grow pb-24">
                 <div className="flex justify-between items-end mb-3">
                     <h2 className="font-display text-lg tracking-tight">Rota de Hoje</h2>
@@ -137,7 +144,6 @@ export default function RoutesPage() {
                 </div>
 
                 <div className="space-y-3">
-                    {/* Lista Pendente */}
                     {routeManager.pending.map((client) => (
                         <ClientRouteCard
                             key={client.id}
@@ -145,27 +151,24 @@ export default function RoutesPage() {
                             products={products}
                             quantities={routeManager.quantities[client.id] || {}}
                             onAdjustQty={(pid, delta) => routeManager.adjustQty(client.id, pid, delta)}
-                            onSkip={() => {/* Chama a função de pular cliente e atualiza o estado setSkipped */}}
+                            onSkip={() => handleToggleSkip(client.id)}
                             onDeliver={() => setDeliveryClient(client)}
                         />
                     ))}
 
-                    {/* Lista Entregue */}
                     {routeManager.done.map((client) => (
-                        <ClientDoneCard key={client.id} client={client} />
+                        <ClientDoneCard key={client.id} client={client} order={orders.find(o => o.clientId === client.id)} />
                     ))}
 
-                    {/* Lista Pulados */}
                     {routeManager.skippedClientsList.length > 0 && (
                         <SkippedClientsList
                             clients={routeManager.skippedClientsList}
-                            onRestore={(id) => {/* Lógica de restauração */}}
+                            onRestore={(id) => handleToggleSkip(id)}
                         />
                     )}
                 </div>
             </section>
 
-            {/* Modais Extraídos */}
             {deliveryClient && (
                 <DeliveryConfirmModal
                     client={deliveryClient}

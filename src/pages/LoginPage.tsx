@@ -5,6 +5,8 @@ import Logo from "@/assets/logo.svg?react";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import InputWithIcon from "@/components/form/InputWithIcon";
 import FormSubmitButton from "@/components/form/FormSubmitButton";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const LoginPage = () => {
     const { login, isAuthenticated } = useAuth();
@@ -23,17 +25,30 @@ const LoginPage = () => {
         navigate({ to: '/', replace: true });
     }, [isAuthenticated, router, navigate]);
 
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
         setLoading(true);
         setError(false);
 
-        const ok = login(email, password);
-        if (!ok) {
+        try {
+            const { data } = await api.post('/auth/login', { email, password });
+
+            login(data.user, data.accessToken, data.refreshToken);
+
+            toast.success(`Bem-vindo(a), ${data.user.name}!`);
+
+        } catch (err: any) {
             setError(true);
+
+            if (err.response?.status === 401) {
+                toast.error('Usuário ou senha incorretos.');
+            } else {
+                toast.error('Erro ao conectar com o servidor. Tente novamente.');
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (
@@ -51,7 +66,6 @@ const LoginPage = () => {
 
                 </div>
 
-                {/* Formulário */}
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <InputWithIcon
                         icon={Mail}
@@ -82,7 +96,7 @@ const LoginPage = () => {
                     )}
 
                     <FormSubmitButton
-                        onClick={() => handleSubmit(new Event('submit') as any)}
+                        onClick={() => handleSubmit()}
                         loading={loading}
                         disabled={loading}
                         variant="primary"
@@ -93,7 +107,6 @@ const LoginPage = () => {
                     </FormSubmitButton>
                 </form>
 
-                {/* Rodapé */}
                 <div className="mt-12 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-[#C8B99A]">
                         <ShieldCheck className="h-3.5 w-3.5" />

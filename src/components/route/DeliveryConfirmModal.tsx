@@ -2,7 +2,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import PaymentSelector from "@/components/PaymentSelector";
-import { useCreateOrder } from "@/lib/hooks/useOrders";
+import { useConfirmDelivery } from "@/lib/hooks/useOrders";
 import { type Client } from "@/lib/types";
 
 interface DeliveryConfirmModalProps {
@@ -15,7 +15,7 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
     const [deliveryPaid, setDeliveryPaid] = useState(true);
     const [deliveryPayment, setDeliveryPayment] = useState<"pix" | "cartao" | "dinheiro" | "boleto">("dinheiro");
 
-    const { mutate: createOrder, isPending } = useCreateOrder();
+    const { mutate: confirmDelivery, isPending } = useConfirmDelivery();
 
     function handleConfirm() {
         const items = Object.entries(quantities || {})
@@ -27,15 +27,14 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
             return;
         }
 
-        createOrder({
+        confirmDelivery({
             clientId: client.id,
             products: items,
-            paymentMethod: deliveryPayment,
+            paymentMethod: deliveryPaid ? deliveryPayment : "dinheiro",
             isPaid: deliveryPaid,
-            status: "ENTREGUE"
         }, {
             onSuccess: () => {
-                toast.success("Entrega salva no sistema!");
+                toast.success("Entrega registada e conciliada!");
                 onClose();
             }
         });
@@ -82,7 +81,7 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
                         disabled={isPending}
                         className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 font-normal disabled:opacity-50 transition-transform active:scale-[0.98]"
                     >
-                        {isPending ? "Salvando..." : "Confirmar entrega"}
+                        {isPending ? "A conciliar..." : "Confirmar entrega"}
                     </button>
                 </div>
             </div>

@@ -28,11 +28,27 @@ export default function OrderCard({ order }: OrderCardProps) {
         >
             <div className={`mt-3 bg-card rounded-xl p-4 border transition-colors ${order.status === 'CANCELADO' ? 'border-destructive/20 opacity-70' : 'border-border'}`}>
                 <div className="flex justify-between items-start mb-2">
-                    <div>
-                        <p className="text-foreground text-sm font-normal">{order.clientName}</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">
+                    <div className="flex flex-col gap-0.5 w-100">
+                        <div className="flex gap-1">
+                            <p className="text-foreground text-sm font-normal">{order.clientName}</p>
+                            {
+                                order.status === 'ENTREGUE' ? (
+
+                                    <span className={`text-[10px] border ml-auto uppercase tracking-wider px-1.5 py-0.5 rounded-full align-middle border-primary/10 bg-primary/5 text-primary"`}>
+                                        {order.status}
+                                    </span>
+                                ) : (
+                                    <button
+                                        className={`text-[10px] border ml-auto uppercase tracking-wider px-1.5 py-0.5 rounded-full align-middle border-primary/10 bg-primary text-primary-foreground`}>
+                                        Concluir Entrega
+                                    </button>
+                                )
+                            }
+                        </div>
+                        <p className="text-foreground/70 text-xs mt-0.5">
                             {new Date(order.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                         </p>
+
                     </div>
                     {order.status === 'CANCELADO' && (
                         <div className="flex items-center gap-2">
@@ -58,7 +74,10 @@ export default function OrderCard({ order }: OrderCardProps) {
                                 ? "bg-primary/10 text-primary"
                                 : "bg-destructive/10 text-destructive"
                                 }`}>
-                                {order.isPaid ? order.paymentMethod + ' • Pago' : order.paymentMethod + ' • Não Pago'}
+                                {order.isPaid ?
+                                    (order.paymentMethod + ' • Pago') :
+                                    (order.paymentMethod + ' • Não Pago')
+                                }
                             </span>
                         </div>
                         <span className={`text-sm font-normal ${order.isPaid ? 'text-primary' : 'text-destructive'}`}>

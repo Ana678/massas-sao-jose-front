@@ -63,7 +63,7 @@ export interface Expense {
 
 export interface RouteOverride {
     id: string;
-    date: string; // YYYY-MM-DD
+    date: string;
     cities: string[];
     reason: string;
 }

@@ -11,8 +11,12 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { type Client } from "@/lib/types";
-import { useClient, useClientOrders } from "@/lib/hooks/useClients";
+import { useClient, useSaveClient } from "@/lib/hooks/useClients";
 import { useDeleteClient } from "@/lib/hooks/useClients";
+import { validateClientForm } from "@/components/ClientForm";
+import { toast } from "sonner";
+import { useFormError } from "@/hooks/useFormError";
+import { useOrdersByClient } from "@/lib/hooks/useOrders";
 
 interface ClientDetailPageProps {
     id: string;
@@ -42,8 +46,10 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
     const [errors, setErrors] = useState<Partial<Record<keyof ClientFormValues, string>>>({});
 
     const { data: client, isLoading: loadingClient, error } = useClient(id);
-    const { data: clientOrders = [] } = useClientOrders(id);
+    const { data: clientOrders = [], error: ordersError, isLoading: isLoadingOrders } = useOrdersByClient(id);
     const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
+    const { mutate: saveClient, isPending: isSaving } = useSaveClient();
+    const { mapErrors } = useFormError();
 
 
     const isBusiness = client ? isBusinessClient(client) : false;
@@ -58,13 +64,50 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
         setErrors({});
         setEditing(true);
     }
+
     function cancelEdit() {
         setEditing(false);
         setErrors({});
     }
 
-    function handleDelete() {
+    function saveEdit() {
+        const result = validateClientForm(values, type);
+        if (!result.ok) {
+            setErrors(result.errors);
+            toast.error("Verifique os campos destacados");
+            return;
+        }
 
+        const clientPayload = {
+            name: values.name.trim(),
+            phone: values.phone.trim().replace(/\D/g, ''),
+            city: values.city.trim(),
+            state: values.state.trim().toUpperCase(),
+            address: values.address.trim(),
+            cep: values.cep.trim() || undefined,
+            cnpj: values.cnpj.trim() || undefined,
+            socialReason: type === "business" ? values.socialReason.trim() || undefined : undefined,
+            stateInscription: type === "business" ? values.stateInscription.trim() || undefined : undefined,
+            needFiscalNote: values.needFiscalNote || false,
+        };
+
+        saveClient({ id, ...clientPayload }, {
+            onSuccess: () => {
+                toast.success("Cliente atualizado com sucesso!");
+                setEditing(false);
+            },
+            onError: (error: any) => {
+                const fieldMapping = {
+                    cityId: "city",
+                    needsInvoice: "needFiscalNote",
+                };
+                mapErrors(error, fieldMapping);
+                toast.error(error.response?.data?.message || "Erro ao atualizar cliente");
+            }
+        });
+    }
+
+    function handleDelete() {
         deleteClient(id);
     }
 
@@ -84,12 +127,13 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                         </div>
                     ) : (
                         <div className="flex gap-2">
-                            <button onClick={cancelEdit} className="bg-card text-muted-foreground p-2 rounded-xl border border-border">
+                            <button onClick={cancelEdit} className="bg-card text-muted-foreground p-2 rounded-xl border border-border" disabled={isSaving}>
                                 <X className="w-5 h-5" />
                             </button>
                             <button
-                                // onClick={saveEdit}
-                                className="bg-primary text-primary-foreground p-2 rounded-xl">
+                                onClick={saveEdit}
+                                disabled={isSaving}
+                                className="bg-primary text-primary-foreground p-2 rounded-xl disabled:opacity-60 disabled:pointer-events-none">
                                 <Check className="w-5 h-5" />
                             </button>
                         </div >
@@ -110,11 +154,12 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                             />
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
+
                                     <button
-                                        className="bg-destructive/10 text-destructive rounded-xl flex justify-center items-center gap-4 py-3 font-normal"
+                                        className="w-full mt-3 py-2.5 rounded-xl text-xs font-normal border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 transition-colors flex items-center justify-center gap-2"
                                         aria-label="Excluir cliente"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-3.5 h-3.5" />
                                         Excluir Cliente
                                     </button>
                                 </AlertDialogTrigger>
@@ -143,7 +188,6 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                         </div>
                     ) : (
                         <>
-                            {/* Type indicator */}
                             <div className="flex items-center gap-2">
                                 <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs ${isBusiness ? "bg-primary/10 text-primary" : "bg-secondary text-secondary-foreground"
                                     }`}>
@@ -157,7 +201,6 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
                                 )}
                             </div>
 
-                            {/* Info card */}
                             <div className="bg-card rounded-2xl p-4 border border-border space-y-3">
                                 {isBusiness && client.cnpj && (
                                     <div className="flex items-center gap-2 text-sm">
@@ -182,7 +225,11 @@ export default function ClientDetailPage({ id }: ClientDetailPageProps) {
 
                             <div>
                                 <h2 className="font-display text-lg tracking-tight mb-3">Histórico de Compras</h2>
-                                {clientOrders.length === 0 ? (
+                                {isLoadingOrders ? (
+                                    <p className="text-muted-foreground text-sm">Carregando pedidos...</p>
+                                ) : ordersError ? (
+                                    <p className="text-destructive text-sm">Erro ao carregar pedidos: {ordersError.message}</p>
+                                ) : clientOrders.length === 0 ? (
                                     <p className="text-muted-foreground text-sm">Nenhuma compra registrada</p>
                                 ) : (
                                     <div className="space-y-2">

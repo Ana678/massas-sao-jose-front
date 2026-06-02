@@ -53,7 +53,6 @@ export function ModalClientPicker({ clients, selectedClientId, onSelect, dayPara
                 <ChevronDown className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            {/* Modal de Seleção */}
             {isOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
                     <div className="w-full max-w-md bg-background rounded-t-2xl h-[60vh] flex flex-col">
@@ -64,7 +63,6 @@ export function ModalClientPicker({ clients, selectedClientId, onSelect, dayPara
                             </button>
                         </div>
 
-                        {/* Search Input Estilizado */}
                         <div className="px-4 pt-3 pb-2">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -99,7 +97,6 @@ export function ModalClientPicker({ clients, selectedClientId, onSelect, dayPara
                             ))}
                         </div>
 
-                        {/* Lista de Resultados */}
                         <div className="overflow-y-auto flex-1 py-2">
                             {filteredClients.length === 0 && (
                                 <p className="text-muted-foreground text-sm text-center py-6">Nenhum cliente encontrado</p>

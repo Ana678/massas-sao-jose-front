@@ -7,7 +7,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value?: number | string | null) {
-    // Se não houver valor, forçamos um zero para não quebrar a tela
     const num = Number(value);
     if (value === undefined || value === null || isNaN(num)) {
         return "R$ Error";

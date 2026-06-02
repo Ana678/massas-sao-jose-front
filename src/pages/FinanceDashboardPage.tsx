@@ -66,7 +66,7 @@ export default function FinanceDashboardPage() {
     const monthsData = useMemo(() => {
         return activeMonths.map(({ key, date }) => {
             const r = orders
-                .filter((o) => o.createdAt.startsWith(key) && o.isPaid) // gets only completed orders
+                .filter((o) => o.createdAt.startsWith(key) && o.isPaid)
                 .reduce((s, o) => s + o.total, 0);
             const e = expenses.filter((x) => x.createdAt.startsWith(key)).reduce((s, x) => s + Number(x.value), 0);
             return { name: monthLabel(date, showYearLabel), key, receita: r, despesa: e, lucro: r - e };
@@ -160,7 +160,6 @@ export default function FinanceDashboardPage() {
                 }
             />
 
-            {/* Period selector */}
             <section className="px-6 pb-2">
                 <div className="bg-card rounded-xl p-1 border border-border flex gap-1">
                     {PRESETS.map((p) => {
@@ -204,7 +203,6 @@ export default function FinanceDashboardPage() {
                 )}
             </section>
 
-            {/* Summary cards */}
             <section className="px-6 py-2 space-y-3">
                 <div className="bg-card rounded-2xl p-5 border border-border">
                     <p className="text-muted-foreground text-xs uppercase tracking-widest mb-1">
@@ -229,7 +227,6 @@ export default function FinanceDashboardPage() {
                 </div>
             </section>
 
-            {/* Revenue per month */}
             <section className="px-6 py-4">
                 <h2 className="font-display text-lg tracking-tight mb-3">Receita por Mês</h2>
                 <div className="bg-card rounded-2xl p-4 border border-border">
@@ -264,7 +261,6 @@ export default function FinanceDashboardPage() {
                 </div>
             </section>
 
-            {/* Profit line */}
             <section className="px-6 py-2">
                 <h2 className="font-display text-lg tracking-tight mb-3">Lucro Líquido</h2>
                 <div className="bg-card rounded-2xl p-4 border border-border">
@@ -295,7 +291,6 @@ export default function FinanceDashboardPage() {
                 </div>
             </section>
 
-            {/* Expense by category - Pie chart */}
             <section className="px-6 py-4 pb-6">
                 <h2 className="font-display text-lg tracking-tight mb-3">Despesas por Categoria</h2>
                 {categoryData.length === 0 ? (

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Client } from "@/lib/types";
 
-const phoneRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
+const phoneRegex = /^(\(\d{2}\)\s\d{4,5}-\d{4}|\d{2}\s\d{4,5}-\d{4}|\d{10,11})$/;
 const cepRegex = /^\d{5}-\d{3}$/;
 const cnpj = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
 
@@ -11,7 +11,7 @@ const phone = z
     .string()
     .trim()
     .min(1, "Telefone obrigatório")
-    .regex(phoneRegex, "Use (00) 00000-0000");
+    .regex(phoneRegex, "Use (00) 00000-0000, 00 00000-0000 ou 00000000000");
 const cep = z
     .string()
     .trim()

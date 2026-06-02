@@ -37,7 +37,6 @@ export default function DespesasPage() {
     const [form, setForm] = useState<FormState>(emptyForm);
     const { errors, setFieldError, clearAll: clearErrors } = useFormError();
 
-    // Filtros
     const [showFilters, setShowFilters] = useState(false);
     const [catFilter, setCatFilter] = useState<CatFilter>("todas");
     const [dateFrom, setDateFrom] = useState<string>(new Date().toISOString().slice(0, 7) + "-01");
@@ -202,7 +201,6 @@ export default function DespesasPage() {
                 </Section>
             )}
 
-            {/* Lista de Despesas */}
             <Section spacing="lg" className="space-y-2">
                 {isLoading && (
                     <LoadingState message="Buscando despesas..." />

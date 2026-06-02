@@ -26,22 +26,8 @@ export function useClient(id: string) {
             }
             return response.data;
         },
-        enabled: !!id, // implies that the query will only run if id is truthy
+        enabled: !!id,
     });
-}
-
-
-export function useClientOrders(clientId: string) {
-
-    return useQuery({
-        queryKey: ['client', clientId, 'orders'],
-        queryFn: async () => {
-            const response = await api.get<Order[]>(`/clients/${clientId}/orders`);
-            return response.data;
-        },
-        enabled: !!clientId,
-    });
-
 }
 
 export function useSaveClient() {
@@ -50,7 +36,8 @@ export function useSaveClient() {
     return useMutation({
         mutationFn: async (client: Partial<Client>) => {
             if (client.id) {
-                return api.put(`/clients/${client.id}`, client);
+                const { id, ...data } = client;
+                return api.put(`/clients/${id}`, data);
             } else {
                 return api.post('/clients', client);
             }

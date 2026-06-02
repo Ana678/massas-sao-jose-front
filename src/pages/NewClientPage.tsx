@@ -47,7 +47,7 @@ export default function NovoClientePage() {
                 navigate({ to: '/clients' });
             },
             onError: (error: any) => {
-                // Map field mapping for API response
+
                 const fieldMapping = {
                     cityId: "city",
                     needsInvoice: "needFiscalNote",
