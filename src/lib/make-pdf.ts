@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { Order, Expense } from "./types";
+import type { Order, Expense, Client } from "./types";
 import { formatCurrency } from "./utils";
 import logoUrl from "@/assets/logo.svg";
 
@@ -351,4 +351,245 @@ export async function exportFinancialDashboardPDF(data: FinancialPeriodData) {
     footer(doc);
     const safeLabel = data.periodLabel.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     doc.save(`dashboard-financeiro-${safeLabel}.pdf`);
+}
+
+export async function exportOrderPDF(order: Order, client?: Client) {
+  const doc = new jsPDF();
+  const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
+    day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+
+  await header(doc, "Detalhamento do Pedido", dateStr);
+
+  // Cliente
+  doc.setFillColor(...CREAM);
+  doc.roundedRect(14, 38, 182, 22, 3, 3, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text("CLIENTE", 22, 46);
+  doc.text("PAGAMENTO", 122, 46);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...NAVY);
+  doc.text(order.clientName, 22, 54);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const pagto = `${order.paymentMethod.toUpperCase()} · ${order.isPaid ? "Pago" : "Em aberto"}`;
+  doc.text(pagto, 122, 54);
+  if (client) {
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(`${client.address} — ${client.city}/${client.state}`, 22, 60);
+  }
+
+  // Itens
+  const rows = order.products.map((i) => {
+    const original = (i as { originalUnitPrice?: number }).originalUnitPrice;
+    const hasDisc = original !== undefined && original > i.price + 0.001;
+    const priceCell = hasDisc
+      ? `${formatBRL(i.price)} (de ${formatBRL(original!)})`
+      : formatBRL(i.price);
+    return [
+      String(i.quantity),
+      i.name,
+      priceCell,
+      formatBRL(i.price * i.quantity),
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 68,
+    head: [["Qtd", "Produto", "Preço Unitário", "Subtotal"]],
+    body: rows,
+    styles: { fontSize: 10, cellPadding: 3 },
+    headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [250, 247, 242] },
+    columnStyles: {
+      0: { cellWidth: 16, halign: "left" },
+      2: { cellWidth: 50, halign: "left" },
+      3: { cellWidth: 36, halign: "left" },
+    },
+  });
+
+  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+  // Total
+  const subtotalSemDesc = order.products.reduce((s, i) => {
+    const orig = (i as { originalUnitPrice?: number }).originalUnitPrice ?? i.price;
+    return s + orig * i.quantity;
+  }, 0);
+  const desconto = subtotalSemDesc - order.total;
+
+  doc.setFillColor(...CREAM);
+  doc.roundedRect(110, finalY + 6, 86, desconto > 0.01 ? 28 : 16, 3, 3, "F");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  if (desconto > 0.01) {
+    doc.text("Subtotal", 116, finalY + 13);
+    doc.text(formatBRL(subtotalSemDesc), 192, finalY + 13, { align: "right" });
+    doc.setTextColor(...RED);
+    doc.text("Desconto", 116, finalY + 20);
+    doc.text(`- ${formatBRL(desconto)}`, 192, finalY + 20, { align: "right" });
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("TOTAL", 116, finalY + 30);
+    doc.text(formatBRL(order.total), 192, finalY + 30, { align: "right" });
+  } else {
+    doc.setTextColor(...NAVY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("TOTAL", 116, finalY + 13);
+    doc.text(formatBRL(order.total), 192, finalY + 13, { align: "right" });
+  }
+
+  footer(doc);
+  doc.save(`Pedido ${order.clientName} - ${dateStr.substring(0, 10)}.pdf`);
+}
+
+/** Monta mensagem WhatsApp do pedido */
+export function buildOrderWhatsAppMessage(order: Order, client?: Client): string {
+  const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
+  const lines: string[] = [];
+  lines.push(`*Massas São José* — Pedido`);
+  lines.push(`\uD83D\uDCC5 ${dateStr}`);
+  lines.push(`\uD83D\uDC64 ${order.clientName}`);
+  if (client?.address) lines.push(`\uD83D\uDCCD ${client.address}, ${client.city}/${client.state}`);
+
+  lines.push("");
+  lines.push("*Itens:*");
+  let subtotal = 0;
+  order.products.forEach((i) => {
+    const orig = (i as { originalUnitPrice?: number }).originalUnitPrice;
+    const hasDisc = orig !== undefined && orig > i.price + 0.001;
+    const line = `• ${i.quantity}× ${i.name} — ${formatCurrency(i.price * i.quantity)}`
+      + (hasDisc ? ` _(de ${formatCurrency(orig! * i.quantity)})_` : "");
+    lines.push(line);
+    subtotal += (orig ?? i.price) * i.quantity;
+  });
+  const desconto = subtotal - order.total;
+  lines.push("");
+  if (desconto > 0.01) {
+    lines.push(`Subtotal: ${formatCurrency(subtotal)}`);
+    lines.push(`Desconto: -${formatCurrency(desconto)}`);
+  }
+  lines.push(`*Total: ${formatCurrency(order.total)}*`);
+  lines.push(`Pagamento: ${order.paymentMethod.toUpperCase()} (${order.isPaid ? "pago" : "em aberto"})`);
+  return lines.join("\n");
+}
+
+/** Abre WhatsApp Web/App com mensagem do pedido */
+export function shareOrderWhatsApp(order: Order, client?: Client) {
+  let msg = buildOrderWhatsAppMessage(order, client);
+  msg = msg
+    .replace(/\u00A0/g, " ")
+    .replace(/\u202F/g, " ")
+    .replace(/—/g, "-")
+    .replace(/•/g, "-")
+    .replace(/×/g, "x");
+
+  const phone = (client?.phone || "").replace(/\D/g, "");
+
+  const encodedMsg = encodeURIComponent(msg);
+
+  const baseUrl = "https://api.whatsapp.com/send";
+  const url = phone
+    ? `${baseUrl}?phone=55${phone}&text=${encodedMsg}`
+    : `${baseUrl}?text=${encodedMsg}`;
+
+  window.open(url, "_blank");
+}
+
+/* ===========================================================
+ * Resumo de vendas do dia (por produto e por cliente)
+ * =========================================================== */
+export function exportDailySalesSummaryPDF(orders: Order[], date: Date = new Date()) {
+  const doc = new jsPDF();
+  const dateStr = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  header(doc, "Resumo de Vendas do Dia", dateStr);
+
+  const concluidos = orders.filter((o) => o.status === "concluido");
+  const total = concluidos.reduce((s, o) => s + o.total, 0);
+  const totalItens = concluidos.reduce((s, o) => s + o.products.reduce((a, i) => a + i.quantity, 0), 0);
+
+  // Cards
+  doc.setFillColor(...CREAM);
+  doc.roundedRect(14, 38, 182, 22, 3, 3, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  doc.text("PEDIDOS", 22, 45);
+  doc.text("ITENS VENDIDOS", 92, 45);
+  doc.text("FATURAMENTO", 162, 45);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...NAVY);
+  doc.text(String(concluidos.length), 22, 54);
+  doc.text(String(totalItens), 92, 54);
+  doc.setTextColor(...GREEN);
+  doc.text(formatBRL(total), 162, 54);
+  doc.setFont("helvetica", "normal");
+
+  // Por produto
+  const byProduct: Record<string, { name: string; qty: number; revenue: number }> = {};
+  concluidos.forEach((o) => o.products.forEach((i) => {
+    const key = i.id;
+    if (!byProduct[key]) byProduct[key] = { name: i.name || "•", qty: 0, revenue: 0 };
+    byProduct[key].qty += i.quantity;
+    byProduct[key].revenue += i.quantity * i.price;
+  }));
+  const prodRows = Object.values(byProduct)
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((p) => [`${p.name}`, String(p.qty), formatBRL(p.revenue)]);
+
+  doc.setTextColor(...NAVY);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Vendas por Produto", 14, 70);
+  doc.setFont("helvetica", "normal");
+
+  autoTable(doc, {
+    startY: 74,
+    head: [["Produto", "Quantidade", "Subtotal"]],
+    body: prodRows.length ? prodRows : [["Sem vendas no dia", "—", "—"]],
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: NAVY, textColor: 255 },
+    columnStyles: { 1: { halign: "center", cellWidth: 34 }, 2: { halign: "right", cellWidth: 36 } },
+  });
+
+  // Por cliente
+  const byClient: Record<string, { name: string; orders: number; qty: number; revenue: number }> = {};
+  concluidos.forEach((o) => {
+    if (!byClient[o.clientId]) byClient[o.clientId] = { name: o.clientName, orders: 0, qty: 0, revenue: 0 };
+    byClient[o.clientId].orders += 1;
+    byClient[o.clientId].qty += o.products.reduce((a, i) => a + i.quantity, 0);
+    byClient[o.clientId].revenue += o.total;
+  });
+  const clientRows = Object.values(byClient)
+    .sort((a, b) => b.revenue - a.revenue)
+    .map((c) => [c.name, String(c.orders), String(c.qty), formatBRL(c.revenue)]);
+
+  const clientStartY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  doc.setTextColor(...NAVY);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Vendas por Cliente", 14, clientStartY);
+  doc.setFont("helvetica", "normal");
+
+  autoTable(doc, {
+    startY: clientStartY + 4,
+    head: [["Cliente", "Pedidos", "Itens", "Total"]],
+    body: clientRows.length ? clientRows : [["Sem vendas no dia", "—", "—", "—"]],
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: NAVY, textColor: 255 },
+    columnStyles: {
+      1: { halign: "center", cellWidth: 22 },
+      2: { halign: "center", cellWidth: 22 },
+      3: { halign: "right", cellWidth: 32 },
+    },
+  });
+
+  footer(doc);
+  doc.save(`resumo-vendas-${date.toISOString().slice(0, 10)}.pdf`);
 }

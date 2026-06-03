@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Pen, Trash2 } from "lucide-react";
+import { FileDown, MessageCircle, Pen, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProductGrid from "@/components/ProductGrid";
 import PaymentSelector from "@/components/PaymentSelector";
@@ -16,6 +16,7 @@ import {
 	useDeleteOrder,
 } from "@/lib/hooks/useOrders";
 import { useProducts } from "@/lib/hooks/useProduct";
+import { exportOrderPDF, shareOrderWhatsApp } from "@/lib/make-pdf";
 
 type PaymentMethod = "dinheiro" | "pix" | "cartao";
 
@@ -152,6 +153,21 @@ export default function EditOrderPage() {
 				backTo="/orders"
 			/>
 
+            <section className="px-4 pb-3 grid grid-cols-2 gap-2">
+                <button
+                    onClick={() => shareOrderWhatsApp(order)}
+                    className="font-normal bg-card border border-border rounded-xl py-2.5 flex items-center justify-center gap-2 text-xs text-primary hover:bg-muted/30"
+                >
+                <MessageCircle className="w-4 h-4 text-primary" /> Enviar WhatsApp
+                </button>
+                <button
+                    onClick={() => exportOrderPDF(order)}
+                    className="font-normal bg-card border border-border rounded-xl py-2.5 flex items-center justify-center gap-2 text-xs text-primary hover:bg-muted/30"
+                >
+                <FileDown className="w-4 h-4 text-primary" /> Baixar PDF
+                </button>
+            </section>
+
 			<section className="px-4 pb-3">
 				<div className="bg-card rounded-2xl border border-border p-4">
 					<p className="text-muted-foreground text-xs uppercase tracking-widest mb-1">
@@ -175,6 +191,7 @@ export default function EditOrderPage() {
 					</div>
 				</div>
 			</section>
+
 
 			<section className="px-4 pb-3">
 				<ProductGrid
