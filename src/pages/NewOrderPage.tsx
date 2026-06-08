@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Check, Calendar, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ProductGrid from "@/components/ProductGrid";
+import LineItemsList from "@/components/LineItemsList";
 import PaymentSelector from "@/components/PaymentSelector";
 import SectionLabel from "@/components/form/SectionLabel";
 import LoadingState from "@/components/layout/LoadingState";
@@ -62,6 +62,8 @@ export default function NewOrderPage() {
 	);
 
 	const [cart, setCart] = useState<Record<string, number>>({});
+	const [prices, setPrices] = useState<Record<string, number>>({});
+
 	const [payment, setPayment] = useState<"pix" | "cartao" | "dinheiro">(
 		"dinheiro",
 	);
@@ -75,32 +77,77 @@ export default function NewOrderPage() {
 		if (!client.averageOrder) return;
 	}
 
-	function tapProduct(pid: string) {
-		setCart((prev) => ({ ...prev, [pid]: (prev[pid] || 0) + 1 }));
+	function adjustQty(productId: string, qty: number) {
+		setCart((prev) => {
+			if (qty <= 0) {
+				const next = { ...prev };
+				delete next[productId];
+				return next;
+			}
+			return { ...prev, [productId]: qty };
+		});
 	}
 
-	function adjustquantity(pid: string, delta: number) {
+	function setUnitPrice(productId: string, price: number) {
+		setPrices((prev) => ({ ...prev, [productId]: price }));
+	}
+
+	function removeItem(productId: string) {
 		setCart((prev) => {
-			const q = Math.max(0, (prev[pid] || 0) + delta);
 			const next = { ...prev };
-			if (q === 0) delete next[pid];
-			else next[pid] = q;
+			delete next[productId];
+			return next;
+		});
+		setPrices((prev) => {
+			const next = { ...prev };
+			delete next[productId];
 			return next;
 		});
 	}
 
-	const lineItems = Object.entries(cart).map(([pid, quantity]) => {
-		const product = apiProducts.find((x) => x.id === pid);
-		return {
-			productId: pid,
-			productName: product?.name || "",
-			quantity,
-			price: product?.price || 0,
-		};
-	});
+	const productsList = useMemo(
+		() =>
+			Object.entries(cart)
+				.filter(([, qty]) => qty > 0)
+				.map(([productId, qty]) => {
+					const product = apiProducts.find((p) => p.id === productId);
+					const originalPrice = product?.price || 0;
+					const customPrice = prices[productId] !== undefined ? prices[productId] : originalPrice;
 
-	const total = lineItems.reduce((s, i) => s + i.quantity * i.price, 0);
-	const totalItems = lineItems.reduce((s, i) => s + i.quantity, 0);
+					let discountPercentage = 0;
+					if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
+						discountPercentage = Number((((originalPrice - customPrice) / originalPrice) * 100).toFixed(2));
+					}
+
+					return {
+						productId,
+						productName: product?.name || "Produto",
+						qty,
+						unitPrice: originalPrice,
+						customPrice,
+						discount: discountPercentage,
+					};
+				}),
+		[cart, prices, apiProducts],
+	);
+
+	const itemsForList = useMemo(
+		() =>
+			Object.entries(cart)
+				.filter(([, qty]) => qty > 0)
+				.map(([pid, qty]) => {
+					const p = apiProducts.find((x) => x.id === pid);
+					const originalPrice = p?.price ?? 0;
+					const unitPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
+					return { productId: pid, qty, unitPrice };
+				}),
+		[cart, prices, apiProducts],
+	);
+
+	const total = useMemo(() => itemsForList.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), [itemsForList]);
+	const originalTotal = useMemo(() => productsList.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), [productsList]);
+	const totalItems = useMemo(() => itemsForList.reduce((sum, item) => sum + item.qty, 0), [itemsForList]);
+
 	const orderType: OrderType = dayParam ? "PREVISAO_ROTA" : "ENCOMENDA";
 
 	const today = new Date();
@@ -112,8 +159,19 @@ export default function NewOrderPage() {
 		targetDate = nextDelivery.toISOString().split("T")[0];
 	}
 
+	const sortedProducts = useMemo(
+		() =>
+			[...apiProducts].sort((a, b) => {
+				const qtyA = cart[a.id] || 0;
+				const qtyB = cart[b.id] || 0;
+				if (qtyB !== qtyA) return qtyB - qtyA;
+				return a.name.localeCompare(b.name);
+			}),
+		[apiProducts, cart],
+	);
+
 	function submit() {
-		if (!selectedClientId || lineItems.length === 0) return;
+		if (!selectedClientId || productsList.length === 0) return;
 
 		const payload = {
 			clientId: selectedClientId,
@@ -123,9 +181,10 @@ export default function NewOrderPage() {
 			isPaid: deliveryType === "hoje" ? isPaid : false,
 			status: deliveryType === "hoje" ? "ENTREGUE" : "PENDENTE",
 			targetDate,
-			products: lineItems.map((item) => ({
+			products: productsList.map((item) => ({
 				productId: item.productId,
-				quantity: item.quantity,
+				quantity: item.qty,
+				discount: item.discount,
 			})),
 		};
 
@@ -191,11 +250,12 @@ export default function NewOrderPage() {
 
 			<section className="px-4 pb-6 flex flex-col gap-2">
 				<SectionLabel className="mt-4">Selecione os Itens</SectionLabel>
-				<ProductGrid
-					products={apiProducts}
-					quantities={cart}
-					onTap={tapProduct}
-					onAdjust={adjustquantity}
+				<LineItemsList
+					items={itemsForList}
+					products={sortedProducts}
+					onAdjustQty={adjustQty}
+					onSetUnitPrice={setUnitPrice}
+					onRemove={removeItem}
 				/>
 			</section>
 
@@ -260,7 +320,7 @@ export default function NewOrderPage() {
 					</>
 				)}
 			</section>
-			{lineItems.length > 0 && selectedClientId && (
+			{productsList.length > 0 && selectedClientId && (
 				<div className="fixed bottom-0 w-full max-w-md z-40">
 					<div className="bg-card p-4 border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
 						<div className="flex items-center justify-between mb-3">
@@ -268,31 +328,36 @@ export default function NewOrderPage() {
 								<p className="text-muted-foreground text-xs">
 									{totalItems} {totalItems === 1 ? "item" : "itens"}
 								</p>
-								<p className="text-primary text-2xl tracking-tighter font-normal">
-									{formatCurrency(total)}
-								</p>
-							</div>
-							{lineItems.length > 0 && (
-								<div className="text-right max-w-[50%]">
-									{lineItems.slice(0, 3).map((i) => (
-										<p
-											key={i.productId}
-											className="text-muted-foreground text-[10px] truncate"
-										>
-											{i.quantity}× {i.productName}
-										</p>
-									))}
-									{lineItems.length > 3 && (
-										<p className="text-muted-foreground text-[10px]">
-											+{lineItems.length - 3} mais
-										</p>
+								<div className="flex flex-col">
+									{productsList.some((p) => p.discount > 0) && (
+										<span className="text-sm line-through font-normal text-foreground/70">
+											{formatCurrency(originalTotal)}
+										</span>
 									)}
+									<p className="text-primary text-2xl tracking-tighter font-normal">
+										{formatCurrency(total)}
+									</p>
 								</div>
-							)}
+							</div>
+							<div className="text-right max-w-[50%]">
+								{productsList.slice(0, 3).map((i) => (
+									<p
+										key={i.productId}
+										className="text-muted-foreground text-[10px] truncate"
+									>
+										{i.qty}× {i.productName}
+									</p>
+								))}
+								{productsList.length > 3 && (
+									<p className="text-muted-foreground text-[10px]">
+										+{productsList.length - 3} mais
+									</p>
+								)}
+							</div>
 						</div>
 						<button
 							onClick={submit}
-							disabled={!selectedClientId || lineItems.length === 0 || isSaving}
+							disabled={!selectedClientId || productsList.length === 0 || isSaving}
 							className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 flex items-center justify-center gap-2 font-normal disabled:opacity-40 transition-transform active:scale-[0.98]"
 						>
 							{isSaving ? (
