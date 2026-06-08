@@ -50,6 +50,7 @@ export interface Order {
         price: number;
         quantity: number;
         subtotal: number;
+        discount: number;
     }[];
 }
 

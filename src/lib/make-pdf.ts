@@ -356,6 +356,8 @@ export async function exportFinancialDashboardPDF(data: FinancialPeriodData) {
 export async function exportOrderPDF(order: Order, client?: Client) {
   const doc = new jsPDF();
   const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
+    timeZone: "America/Fortaleza",
+    hour12: false,
     day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
@@ -384,28 +386,27 @@ export async function exportOrderPDF(order: Order, client?: Client) {
 
   // Itens
   const rows = order.products.map((i) => {
-    const original = (i as { originalUnitPrice?: number }).originalUnitPrice;
-    const hasDisc = original !== undefined && original > i.price + 0.001;
-    const priceCell = hasDisc
-      ? `${formatBRL(i.price)} (de ${formatBRL(original!)})`
+    const priceUnit = i.price * (1 - (i.discount || 0) / 100);
+    const priceCell = priceUnit < i.price - 0.01
+      ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
       : formatBRL(i.price);
     return [
-      String(i.quantity),
       i.name,
+      String(i.quantity),
       priceCell,
-      formatBRL(i.price * i.quantity),
+      formatBRL(priceUnit * i.quantity),
     ];
   });
 
   autoTable(doc, {
     startY: 68,
-    head: [["Qtd", "Produto", "Preço Unitário", "Subtotal"]],
+    head: [["Produto", "Qtd", "Preço Unitário", "Subtotal"]],
     body: rows,
     styles: { fontSize: 10, cellPadding: 3 },
     headStyles: { fillColor: NAVY, textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [250, 247, 242] },
     columnStyles: {
-      0: { cellWidth: 16, halign: "left" },
+      1: { cellWidth: 16, halign: "left" },
       2: { cellWidth: 50, halign: "left" },
       3: { cellWidth: 36, halign: "left" },
     },
@@ -450,6 +451,8 @@ export async function exportOrderPDF(order: Order, client?: Client) {
 /** Monta mensagem WhatsApp do pedido */
 export function buildOrderWhatsAppMessage(order: Order, client?: Client): string {
   const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
+    timeZone: "America/Fortaleza",
+    hour12: false,
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
   const lines: string[] = [];
@@ -462,14 +465,18 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   lines.push("*Itens:*");
   let subtotal = 0;
   order.products.forEach((i) => {
-    const orig = (i as { originalUnitPrice?: number }).originalUnitPrice;
-    const hasDisc = orig !== undefined && orig > i.price + 0.001;
-    const line = `• ${i.quantity}× ${i.name} — ${formatCurrency(i.price * i.quantity)}`
-      + (hasDisc ? ` _(de ${formatCurrency(orig! * i.quantity)})_` : "");
-    lines.push(line);
-    subtotal += (orig ?? i.price) * i.quantity;
+
+    const priceUnit = i.price * (1 - (i.discount || 0) / 100);
+    lines.push(`• ${i.quantity}× ${i.name} `);
+    lines.push(
+        ` ->  ${(priceUnit < i.price - 0.01 ? `~${formatBRL(i.price)}~ ${formatBRL(priceUnit)}` : formatBRL(priceUnit))}`
+      + ` = ${formatBRL(priceUnit * i.quantity)}`
+    )
+
+    subtotal += i.price * i.quantity;
   });
   const desconto = subtotal - order.total;
+
   lines.push("");
   if (desconto > 0.01) {
     lines.push(`Subtotal: ${formatCurrency(subtotal)}`);

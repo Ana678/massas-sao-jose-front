@@ -3,15 +3,23 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import PaymentSelector from "@/components/PaymentSelector";
 import { useConfirmDelivery } from "@/lib/hooks/useOrders";
-import { type Client } from "@/lib/types";
+import { type Client, type Product } from "@/lib/types";
 
 interface DeliveryConfirmModalProps {
     client: Client;
+    products: Product[];
     quantities: Record<string, number>;
+    prices: Record<string, number>;
     onClose: () => void;
 }
 
-export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryConfirmModalProps) {
+export function DeliveryConfirmModal({
+    client,
+    products,
+    quantities,
+    prices,
+    onClose
+}: DeliveryConfirmModalProps) {
     const [deliveryPaid, setDeliveryPaid] = useState(true);
     const [deliveryPayment, setDeliveryPayment] = useState<"pix" | "cartao" | "dinheiro" | "boleto">("dinheiro");
 
@@ -20,7 +28,20 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
     function handleConfirm() {
         const items = Object.entries(quantities || {})
             .filter(([, q]) => q > 0)
-            .map(([pid, q]) => ({ productId: pid, quantity: q }));
+            .map(([pid, q]) => {
+                const product = products.find(p => p.id === pid);
+                const originalPrice = product?.price || 0;
+                const customPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
+
+                const discountValue = parseFloat((originalPrice - customPrice).toFixed(2));
+
+                return {
+                    productId: pid,
+                    quantity: q,
+                    unitPrice: originalPrice,
+                    discount: discountValue
+                };
+            });
 
         if (items.length === 0) {
             toast.error("Adicione itens para concluir a entrega");
@@ -29,7 +50,6 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
 
         confirmDelivery({
             clientId: client.id,
-            products: items,
             paymentMethod: deliveryPaid ? deliveryPayment : "dinheiro",
             isPaid: deliveryPaid,
         }, {
@@ -42,7 +62,7 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-            <div className="w-full max-w-md bg-background rounded-t-2xl py-4 space-y-4">
+            <div className="w-full max-w-md bg-background rounded-t-2xl py-4 space-y-4 animate-slide-up">
                 <div className="flex items-start justify-between gap-3 px-4">
                     <div>
                         <h3 className="font-display text-xl leading-tight mt-1">{client.name}</h3>
@@ -75,7 +95,7 @@ export function DeliveryConfirmModal({ client, quantities, onClose }: DeliveryCo
                     </section>
                 )}
 
-                <div className="p-4 pb-0 border-t border-border">
+                <div className="p-4 pb-0 border-t border-border mt-2">
                     <button
                         onClick={handleConfirm}
                         disabled={isPending}

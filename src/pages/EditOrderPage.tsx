@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { FileDown, MessageCircle, Pen, Trash2 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
-import ProductGrid from "@/components/ProductGrid";
 import PaymentSelector from "@/components/PaymentSelector";
 import StatusSelector from "@/components/StatusSelector";
 import Checkbox from "@/components/form/Checkbox";
@@ -17,15 +16,9 @@ import {
 } from "@/lib/hooks/useOrders";
 import { useProducts } from "@/lib/hooks/useProduct";
 import { exportOrderPDF, shareOrderWhatsApp } from "@/lib/make-pdf";
+import LineItemsList from "@/components/LineItemsList";
 
 type PaymentMethod = "dinheiro" | "pix" | "cartao";
-
-interface EditableLineItem {
-	productId: string;
-	productName: string;
-	qty: number;
-	unitPrice: number;
-}
 
 export default function EditOrderPage() {
 	const { id } = useSearch({ from: "/_authenticated/order/edit" });
@@ -41,60 +34,85 @@ export default function EditOrderPage() {
 	const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 	const [status, setStatus] = useState("PENDENTE");
 	const [cart, setCart] = useState<Record<string, number>>({});
+    const [prices, setPrices] = useState<Record<string, number>>({});
 
 	useEffect(() => {
-		if (order) {
+        if (order) {
 			setPayment((order?.paymentMethod as PaymentMethod) || "dinheiro");
 			setPaymentConfirmed(Boolean(order?.isPaid));
 			setStatus(order?.status || "PENDENTE");
-			const initial: Record<string, number> = {};
+
+            const initialQty: Record<string, number> = {};
+            const initialPrices: Record<string, number> = {};
+
 			order?.products.forEach((product) => {
-				initial[product.id] = Number(product.quantity);
+				initialQty[product.id] = Number(product.quantity);
+
+                const discount = product.discount || 0;
+                const originalPrice = product.price || 0;
+                const finalPrice = originalPrice - (originalPrice * (discount / 100));
+
+                initialPrices[product.id] = Number(finalPrice.toFixed(2));
 			});
-			setCart(initial);
+
+			setCart(initialQty);
+            setPrices(initialPrices);
 		}
 	}, [order]);
 
-	const productsList: EditableLineItem[] = useMemo(
+    const productsList = useMemo(
 		() =>
 			Object.entries(cart)
 				.filter(([, qty]) => qty > 0)
 				.map(([productId, qty]) => {
 					const product = products.find((p) => p.id === productId);
 					const orderProduct = order?.products.find((p) => p.id === productId);
+
+					const originalPrice = product?.price ?? orderProduct?.price ?? 0;
+					const customPrice = prices[productId] !== undefined ? prices[productId] : originalPrice;
+
+					let discountPercentage = 0;
+					if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
+						discountPercentage = Number((((originalPrice - customPrice) / originalPrice) * 100).toFixed(2));
+					}
+
 					return {
 						productId,
 						productName: product?.name || orderProduct?.name || "Produto",
 						qty,
-						unitPrice: product?.price ?? orderProduct?.price ?? 0,
+						unitPrice: originalPrice,
+						discount: discountPercentage
 					};
 				}),
-		[cart, products, order?.products],
+		[cart, prices, products, order?.products],
 	);
-	const total = productsList.reduce(
-		(sum, item) => sum + item.qty * item.unitPrice,
-		0,
-	);
-	const totalItems = productsList.reduce((sum, item) => sum + item.qty, 0);
 
-	function tapProduct(productId: string) {
-		setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
-	}
+	const itemsForList = Object.entries(cart)
+		.filter(([, qty]) => qty > 0)
+		.map(([pid, qty]) => {
+			const p = products.find(x => x.id === pid);
+			const orderProduct = order?.products.find(x => x.id === pid);
+			const originalPrice = p?.price ?? orderProduct?.price ?? 0;
+			const unitPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
+			return { productId: pid, qty, unitPrice };
+		});
+
+	const newTotal = itemsForList.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
+	const newOriginalPrice = productsList.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
+
+	const sortedProducts = [...products].sort((a, b) => {
+		const qtyA = cart[a.id] || 0;
+		const qtyB = cart[b.id] || 0;
+		if (qtyB !== qtyA) return qtyB - qtyA;
+		return a.name.localeCompare(b.name);
+	});
+
 
 	function adjustQty(productId: string, delta: number) {
 		setCart((prev) => {
 			const qty = Math.max(0, (prev[productId] || 0) + delta);
 			const next = { ...prev };
 			if (qty === 0) delete next[productId];
-			else next[productId] = qty;
-			return next;
-		});
-	}
-
-	function setQty(productId: string, qty: number) {
-		setCart((prev) => {
-			const next = { ...prev };
-			if (qty <= 0) delete next[productId];
 			else next[productId] = qty;
 			return next;
 		});
@@ -111,6 +129,7 @@ export default function EditOrderPage() {
 				products: productsList.map((item) => ({
 					productId: item.productId,
 					quantity: item.qty,
+                    discount: item.discount
 				})),
 			});
 			toast.success("Pedido atualizado");
@@ -119,6 +138,23 @@ export default function EditOrderPage() {
 			console.error(error);
 			toast.error("Erro ao atualizar pedido");
 		}
+	}
+
+    function setUnitPrice(productId: string, price: number) {
+		setPrices((prev) => ({ ...prev, [productId]: price }));
+	}
+
+	function removeItem(productId: string) {
+		setCart((prev) => {
+			const next = { ...prev };
+			delete next[productId];
+			return next;
+		});
+		setPrices((prev) => {
+			const next = { ...prev };
+			delete next[productId];
+			return next;
+		});
 	}
 
 	async function handleDelete() {
@@ -144,6 +180,7 @@ export default function EditOrderPage() {
 	if (!order) {
 		return <PageHeader title="Pedido não encontrado" backTo="/orders" />;
 	}
+
 
 	return (
 		<div className="flex flex-col min-h-screen pb-36">
@@ -173,12 +210,20 @@ export default function EditOrderPage() {
 					<p className="text-muted-foreground text-xs uppercase tracking-widest mb-1">
 						Total atualizado
 					</p>
-					<p className="text-primary text-4xl tracking-tighter font-normal">
-						{formatCurrency(total)}
-					</p>
+
+                    <div className="flex flex-col">
+                        {order.products.some(p => p.discount > 0) && (
+                            <span className={`text-sm line-through font-normal text-foreground/70`}>
+                                {formatCurrency(newOriginalPrice)}
+                            </span>
+                        )}
+                        <p className="text-primary text-4xl tracking-tighter font-normal">
+                            {formatCurrency(newTotal)}
+                        </p>
+                    </div>
 					<div className="flex items-center justify-between border-t border-border mt-4 pt-3 text-xs text-muted-foreground">
 						<span>
-							{totalItems} {totalItems === 1 ? "item" : "itens"}
+							{newTotal} {newTotal === 1 ? "item" : "itens"}
 						</span>
 						<span>
 							{new Date(order.createdAt).toLocaleString("pt-BR", {
@@ -194,12 +239,12 @@ export default function EditOrderPage() {
 
 
 			<section className="px-4 pb-3">
-				<ProductGrid
-					products={products}
-					quantities={cart}
-					onTap={tapProduct}
-					onAdjust={adjustQty}
-					onSetQty={setQty}
+                <LineItemsList
+					items={itemsForList}
+					products={sortedProducts}
+					onAdjustQty={adjustQty}
+					onSetUnitPrice={setUnitPrice}
+					onRemove={removeItem}
 				/>
 			</section>
 

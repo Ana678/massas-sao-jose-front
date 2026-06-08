@@ -213,9 +213,6 @@ export default function ProductionPage() {
 					}}
 					formattedDate={formattedDateView}
 				/>
-				{/*<p className="text-center text-xs font-medium text-muted-foreground mt-3 uppercase tracking-widest">
-                    Rota para o dia {formattedDateView}
-                </p> */}
 			</section>
 
 			<section className="px-6 py-2">
@@ -238,7 +235,7 @@ export default function ProductionPage() {
 				<h2 className="font-display text-lg tracking-tight mb-3">
 					Resumo por Produto
 				</h2>
-				<div className="grid grid-cols-3 gap-2">
+				<div className="grid grid-cols-2 gap-2">
 					{products.map((product) => {
 						const qty = forecast[product.id] || 0;
 						return (

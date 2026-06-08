@@ -11,6 +11,7 @@ interface CreateOrderInput {
 	products: {
 		productId: string;
 		quantity: number;
+        discount?: number;
 	}[];
 }
 
@@ -23,6 +24,7 @@ interface UpdateOrderInput {
 	products: {
 		productId: string;
 		quantity: number;
+        discount?: number;
 	}[];
 }
 
@@ -44,6 +46,7 @@ export interface OrderResponse {
 		price: number;
 		quantity: number;
 		subtotal: number;
+        discount: number;
 	}[];
 }
 
@@ -52,7 +55,6 @@ interface ConfirmDeliveryInput {
 	paymentMethod?: string;
 	deliveryFee?: number;
 	isPaid?: boolean;
-	products: { productId: string; quantity: number }[];
 }
 
 export interface ProductionEstimateResponse {

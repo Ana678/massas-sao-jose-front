@@ -7,15 +7,15 @@ import { type Client } from "@/lib/types";
 import { formatCurrency, getCitiesForToday } from "@/lib/utils";
 import { useClients } from "@/lib/hooks/useClients";
 import { useProducts } from "@/lib/hooks/useProduct";
-import { useOrdersListByCity } from "@/lib/hooks/useOrders";
+import { useOrdersListByCity, useCreateOrder, useUpdateOrder } from "@/lib/hooks/useOrders";
 import { getRouteOverrides, getSkippedClients, toggleSkipClient } from "@/lib/data";
-
 import { useRouteManager } from "@/lib/hooks/useRouteManager";
 import { ClientRouteCard } from "@/components/route/ClientRouteCard";
 import { ClientDoneCard } from "@/components/route/ClientDoneCard";
 import { SkippedClientsList } from "@/components/route/SkippedClientsList";
 import { DeliveryConfirmModal } from "@/components/route/DeliveryConfirmModal";
 import { RouteOverrideModal } from "@/components/route/RouteOverrideModal";
+import { ClientRouteModal } from "@/components/route/ClientRouteModal";
 
 export default function RoutesPage() {
     const today = new Date();
@@ -36,11 +36,14 @@ export default function RoutesPage() {
 
     const [showOverrideModal, setShowOverrideModal] = useState(false);
     const [deliveryClient, setDeliveryClient] = useState<Client | null>(null);
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
+
+    const { mutate: createOrder, isPending: isCreating } = useCreateOrder();
+    const { mutate: updateOrder, isPending: isUpdating } = useUpdateOrder();
 
     const handleToggleSkip = (clientId: string) => {
         const updated = toggleSkipClient(skipKey, clientId);
         setSkipped({ ...updated });
-
         if (skippedIds.includes(clientId)) {
             toast.success("Cliente restaurado na rota de hoje");
         } else {
@@ -53,6 +56,73 @@ export default function RoutesPage() {
             routeManager.initializeQuantities();
         }
     }, [allClients.length, orders.length]);
+
+    const handleSavePendingOrder = () => {
+        if (!editingClient) return;
+
+        const clientId = editingClient.id;
+        const clientQty = routeManager.quantities[clientId] || {};
+        const clientPrices = routeManager.prices[clientId] || {};
+
+        const orderProducts = Object.entries(clientQty)
+            .filter(([, qty]) => qty > 0)
+            .map(([productId, quantity]) => {
+                const product = products.find(p => p.id === productId);
+                const originalPrice = product?.price || 0;
+                const customPrice = clientPrices[productId];
+
+                let discountPercentage = 0;
+
+                if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
+                    const calc = ((originalPrice - customPrice) / originalPrice) * 100;
+                    discountPercentage = Number(calc.toFixed(2));
+                }
+
+                return {
+                    productId,
+                    quantity,
+                    discount: discountPercentage
+                };
+            });
+
+        if (orderProducts.length === 0) {
+            toast.error("Adicione pelo menos um item para salvar o pedido.");
+            return;
+        }
+
+        const existingOrder = orders.find(o => o.clientId === clientId);
+
+        const payload = {
+            clientId: clientId,
+            paymentMethod: existingOrder?.paymentMethod || "dinheiro",
+            isPaid: existingOrder?.isPaid || false,
+            status: "PENDENTE",
+            targetDate: todayStr,
+            products: orderProducts,
+        };
+
+        if (existingOrder) {
+            updateOrder(
+                { id: existingOrder.id, ...payload },
+                {
+                    onSuccess: () => {
+                        toast.success("Pedido do cliente atualizado!");
+                        setEditingClient(null);
+                    }
+                }
+            );
+        } else {
+            createOrder(
+                payload,
+                {
+                    onSuccess: () => {
+                        toast.success("Pedido adicionado à rota!");
+                        setEditingClient(null);
+                    }
+                }
+            );
+        }
+    };
 
     const isLoading = loadingClients || loadingProducts || loadingOrders;
 
@@ -91,7 +161,7 @@ export default function RoutesPage() {
                     <span className="text-base">rota para </span>
                     <span className="italic text-base">{todayCities.join(", ") || "nenhuma cidade"}.</span>
                 </h1>
-                {hasOverride && <p className="text-accent text-xs mt-1">⚠️ Rota alterada para hoje</p>}
+                {hasOverride && <p className="text-accent text-xs mt-1">  Rota alterada para hoje</p>}
             </section>
 
             <section className="px-6 py-2">
@@ -100,6 +170,7 @@ export default function RoutesPage() {
                     <p className="text-primary text-4xl tracking-tighter font-normal">
                         {formatCurrency(routeManager.todayRevenue)}
                     </p>
+
                     <div className="border-t border-border mt-5 pt-5 flex justify-between items-center">
                         <div>
                             <p className="text-muted-foreground text-xs mb-1 tracking-wide">Pedidos</p>
@@ -150,9 +221,10 @@ export default function RoutesPage() {
                             client={client}
                             products={products}
                             quantities={routeManager.quantities[client.id] || {}}
-                            onAdjustQty={(pid, delta) => routeManager.adjustQty(client.id, pid, delta)}
+                            prices={routeManager.prices[client.id] || {}}
                             onSkip={() => handleToggleSkip(client.id)}
                             onDeliver={() => setDeliveryClient(client)}
+                            onEdit={() => setEditingClient(client)}
                         />
                     ))}
 
@@ -169,10 +241,13 @@ export default function RoutesPage() {
                 </div>
             </section>
 
+            {/* Modal de confirmação de entrega */}
             {deliveryClient && (
                 <DeliveryConfirmModal
                     client={deliveryClient}
-                    quantities={routeManager.quantities[deliveryClient.id]}
+                    products={products}
+                    quantities={routeManager.quantities[deliveryClient.id] || {}}
+                    prices={routeManager.prices[deliveryClient.id] || {}}
                     onClose={() => setDeliveryClient(null)}
                 />
             )}
@@ -180,6 +255,21 @@ export default function RoutesPage() {
             {showOverrideModal && (
                 <RouteOverrideModal
                     onClose={() => setShowOverrideModal(false)}
+                />
+            )}
+
+            {editingClient && (
+                <ClientRouteModal
+                    client={editingClient}
+                    products={products}
+                    quantities={routeManager.quantities[editingClient.id] || {}}
+                    prices={routeManager.prices[editingClient.id] || {}}
+                    onAdjustQty={(pid, delta) => routeManager.adjustQty(editingClient.id, pid, delta)}
+                    onSetUnitPrice={(pid, price) => routeManager.setUnitPrice(editingClient.id, pid, price)}
+                    onRemove={(pid) => routeManager.removeItem(editingClient.id, pid)}
+                    onClose={() => setEditingClient(null)}
+                    onSave={handleSavePendingOrder}
+                    isSaving={isCreating || isUpdating}
                 />
             )}
         </>

@@ -1,26 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
+import { type Order } from "@/lib/types";
 
-interface Order {
-    id: string;
-    clientName: string;
-    createdAt: string;
-    status?: string;
-    isPaid: boolean;
-    paymentMethod: string;
-    total: number;
-    products?: Array<{
-        id: string;
-        quantity: number;
-        name: string;
-    }>;
-}
 
 interface OrderCardProps {
     order: Order;
 }
 
 export default function OrderCard({ order }: OrderCardProps) {
+    const originalPrice = order.products.reduce((sum, item) => sum + (item.quantity * item.price), 0);
     return (
         <Link
             to="/order/edit"
@@ -62,7 +50,12 @@ export default function OrderCard({ order }: OrderCardProps) {
                 <div className="space-y-0.5">
                     {order.products?.map((i) => (
                         <p key={i.id} className="text-muted-foreground text-xs flex justify-between">
-                            <span>{i.quantity}x {i.name}</span>
+                            <span>{i.quantity} x {i.name}</span>
+                            {i.discount !== undefined && i.discount > 0 && (
+                                <span className="text-primary bg-primary/10 border border-primary/20 px-0.5 rounded text-[10px]">
+                                    -{i.discount}%
+                                </span>
+                            )}
                         </p>
                     ))}
                 </div>
@@ -80,9 +73,18 @@ export default function OrderCard({ order }: OrderCardProps) {
                                 }
                             </span>
                         </div>
-                        <span className={`text-sm font-normal ${order.isPaid ? 'text-primary' : 'text-destructive'}`}>
-                            {formatCurrency(order.total)}
-                        </span>
+                        <div className="flex flex-col text-right">
+                            {
+                                order.products.some(p => p.discount > 0) && (
+                                    <span className={`text-xs line-through font-normal text-foreground/70`}>
+                                        {formatCurrency(originalPrice)}
+                                    </span>
+                                )
+                            }
+                            <span className={`text-sm font-normal ${order.isPaid ? 'text-primary' : 'text-destructive'}`}>
+                                {formatCurrency(order.total)}
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>
