@@ -77,14 +77,13 @@ export default function NewOrderPage() {
 		if (!client.averageOrder) return;
 	}
 
-	function adjustQty(productId: string, qty: number) {
+    function adjustQty(productId: string, delta: number) {
 		setCart((prev) => {
-			if (qty <= 0) {
-				const next = { ...prev };
-				delete next[productId];
-				return next;
-			}
-			return { ...prev, [productId]: qty };
+			const qty = Math.max(0, (prev[productId] || 0) + delta);
+			const next = { ...prev };
+			if (qty === 0) delete next[productId];
+			else next[productId] = qty;
+			return next;
 		});
 	}
 
