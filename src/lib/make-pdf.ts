@@ -391,12 +391,10 @@ export async function exportOrderPDF(order: Order, client?: Client) {
     //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
     //   : formatBRL(i.price);
 
-    const priceCell = formatBRL(i.price);
-
     return [
       i.name,
       String(i.quantity),
-      priceCell,
+      formatBRL(priceUnit),
       formatBRL(priceUnit * i.quantity),
     ];
   });
