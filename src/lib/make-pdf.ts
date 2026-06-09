@@ -358,7 +358,7 @@ export async function exportOrderPDF(order: Order, client?: Client) {
   const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
     timeZone: "America/Fortaleza",
     hour12: false,
-    day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+    day: "2-digit", month: "long", year: "numeric",
   });
 
   await header(doc, "Detalhamento do Pedido", dateStr);
@@ -387,9 +387,12 @@ export async function exportOrderPDF(order: Order, client?: Client) {
   // Itens
   const rows = order.products.map((i) => {
     const priceUnit = i.price * (1 - (i.discount || 0) / 100);
-    const priceCell = priceUnit < i.price - 0.01
-      ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
-      : formatBRL(i.price);
+    // const priceCell = priceUnit < i.price - 0.01
+    //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
+    //   : formatBRL(i.price);
+
+    const priceCell = formatBRL(i.price);
+
     return [
       i.name,
       String(i.quantity),
@@ -415,34 +418,34 @@ export async function exportOrderPDF(order: Order, client?: Client) {
   const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
   // Total
-  const subtotalSemDesc = order.products.reduce((s, i) => {
-    const orig = (i as { originalUnitPrice?: number }).originalUnitPrice ?? i.price;
-    return s + orig * i.quantity;
-  }, 0);
-  const desconto = subtotalSemDesc - order.total;
+//   const subtotalSemDesc = order.products.reduce((s, i) => {
+//     const orig = (i as { originalUnitPrice?: number }).originalUnitPrice ?? i.price;
+//     return s + orig * i.quantity;
+//   }, 0);
+  //const desconto = subtotalSemDesc - order.total;
 
   doc.setFillColor(...CREAM);
-  doc.roundedRect(110, finalY + 6, 86, desconto > 0.01 ? 28 : 16, 3, 3, "F");
+  doc.roundedRect(110, finalY + 6, 86, 16, 3, 3, "F");
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
-  if (desconto > 0.01) {
-    doc.text("Subtotal", 116, finalY + 13);
-    doc.text(formatBRL(subtotalSemDesc), 192, finalY + 13, { align: "right" });
-    doc.setTextColor(...RED);
-    doc.text("Desconto", 116, finalY + 20);
-    doc.text(`- ${formatBRL(desconto)}`, 192, finalY + 20, { align: "right" });
-    doc.setTextColor(...NAVY);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("TOTAL", 116, finalY + 30);
-    doc.text(formatBRL(order.total), 192, finalY + 30, { align: "right" });
-  } else {
+//   if (desconto > 0.01) {
+//     doc.text("Subtotal", 116, finalY + 13);
+//     doc.text(formatBRL(subtotalSemDesc), 192, finalY + 13, { align: "right" });
+//     doc.setTextColor(...RED);
+//     doc.text("Desconto", 116, finalY + 20);
+//     doc.text(`- ${formatBRL(desconto)}`, 192, finalY + 20, { align: "right" });
+//     doc.setTextColor(...NAVY);
+//     doc.setFont("helvetica", "bold");
+//     doc.setFontSize(12);
+//     doc.text("TOTAL", 116, finalY + 30);
+//     doc.text(formatBRL(order.total), 192, finalY + 30, { align: "right" });
+//   } else {
     doc.setTextColor(...NAVY);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text("TOTAL", 116, finalY + 13);
     doc.text(formatBRL(order.total), 192, finalY + 13, { align: "right" });
-  }
+  //}
 
   footer(doc);
   doc.save(`Pedido ${order.clientName} - ${dateStr.substring(0, 10)}.pdf`);
@@ -453,7 +456,7 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   const dateStr = new Date(order.createdAt).toLocaleString("pt-BR", {
     timeZone: "America/Fortaleza",
     hour12: false,
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric",
   });
   const lines: string[] = [];
   lines.push(`*Massas São José* — Pedido`);
@@ -467,21 +470,21 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   order.products.forEach((i) => {
 
     const priceUnit = i.price * (1 - (i.discount || 0) / 100);
-    lines.push(`• ${i.quantity}× ${i.name} `);
-    lines.push(
+    lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(priceUnit)} cada, total ${formatBRL(priceUnit * i.quantity)}`);
+    /*lines.push(
         ` ->  ${(priceUnit < i.price - 0.01 ? `~${formatBRL(i.price)}~ ${formatBRL(priceUnit)}` : formatBRL(priceUnit))}`
       + ` = ${formatBRL(priceUnit * i.quantity)}`
-    )
+    )*/
 
     subtotal += i.price * i.quantity;
   });
-  const desconto = subtotal - order.total;
+  //const desconto = subtotal - order.total;
 
   lines.push("");
-  if (desconto > 0.01) {
-    lines.push(`Subtotal: ${formatCurrency(subtotal)}`);
-    lines.push(`Desconto: -${formatCurrency(desconto)}`);
-  }
+//   if (desconto > 0.01) {
+//     lines.push(`Subtotal: ${formatCurrency(subtotal)}`);
+//     lines.push(`Desconto: -${formatCurrency(desconto)}`);
+//   }
   lines.push(`*Total: ${formatCurrency(order.total)}*`);
   lines.push(`Pagamento: ${order.paymentMethod.toUpperCase()} (${order.isPaid ? "pago" : "em aberto"})`);
   return lines.join("\n");
