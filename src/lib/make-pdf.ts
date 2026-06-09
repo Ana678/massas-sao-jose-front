@@ -386,7 +386,7 @@ export async function exportOrderPDF(order: Order, client?: Client) {
 
   // Itens
   const rows = order.products.map((i) => {
-    const priceUnit = i.price * (1 - (i.discount || 0) / 100);
+    const priceUnit = Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100);
     // const priceCell = priceUnit < i.price - 0.01
     //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
     //   : formatBRL(i.price);
@@ -467,14 +467,15 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   let subtotal = 0;
   order.products.forEach((i) => {
 
-    const priceUnit = i.price * (1 - (i.discount || 0) / 100);
+    const priceUnit = Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100);
+
     lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(priceUnit)} cada, total ${formatBRL(priceUnit * i.quantity)}`);
     /*lines.push(
         ` ->  ${(priceUnit < i.price - 0.01 ? `~${formatBRL(i.price)}~ ${formatBRL(priceUnit)}` : formatBRL(priceUnit))}`
       + ` = ${formatBRL(priceUnit * i.quantity)}`
     )*/
 
-    subtotal += i.price * i.quantity;
+    subtotal += priceUnit * i.quantity;
   });
   //const desconto = subtotal - order.total;
 
