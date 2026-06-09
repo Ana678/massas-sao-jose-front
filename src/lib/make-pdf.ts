@@ -386,17 +386,18 @@ export async function exportOrderPDF(order: Order, client?: Client) {
 
   // Itens
   const rows = order.products.map((i) => {
-    const priceUnit = Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100);
+    const priceUnit = Number(Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100)).toFixed(2);
+
     // const priceCell = priceUnit < i.price - 0.01
     //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
     //   : formatBRL(i.price);
 
-    const total = Number((priceUnit * i.quantity).toFixed(2));
+    const total = Number(priceUnit) * i.quantity;
 
     return [
       i.name,
       String(i.quantity),
-      formatBRL(priceUnit),
+      formatBRL(Number(priceUnit)),
       formatBRL(total),
     ];
   });
@@ -469,11 +470,11 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   let subtotal = 0;
   order.products.forEach((i) => {
 
-    const priceUnit = Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100);
+    const priceUnit = Number(Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100)).toFixed(2);
 
-    const totalProduct = Number((priceUnit * i.quantity).toFixed(2));
+    const totalProduct =  Number(priceUnit) * i.quantity;
 
-    lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(priceUnit)} cada, total ${formatBRL(totalProduct)}`);
+    lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(Number(priceUnit))} cada, total ${formatBRL(totalProduct)}`);
     /*lines.push(
         ` ->  ${(priceUnit < i.price - 0.01 ? `~${formatBRL(i.price)}~ ${formatBRL(priceUnit)}` : formatBRL(priceUnit))}`
       + ` = ${formatBRL(total)}`
