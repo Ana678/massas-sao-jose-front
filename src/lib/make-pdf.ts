@@ -391,11 +391,13 @@ export async function exportOrderPDF(order: Order, client?: Client) {
     //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
     //   : formatBRL(i.price);
 
+    const total = Number((priceUnit * i.quantity).toFixed(2));
+
     return [
       i.name,
       String(i.quantity),
       formatBRL(priceUnit),
-      formatBRL(priceUnit * i.quantity),
+      formatBRL(total),
     ];
   });
 
@@ -469,13 +471,15 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
 
     const priceUnit = Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100);
 
-    lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(priceUnit)} cada, total ${formatBRL(priceUnit * i.quantity)}`);
+    const totalProduct = Number((priceUnit * i.quantity).toFixed(2));
+
+    lines.push(`• ${i.quantity}× ${i.name} ->  ${formatBRL(priceUnit)} cada, total ${formatBRL(totalProduct)}`);
     /*lines.push(
         ` ->  ${(priceUnit < i.price - 0.01 ? `~${formatBRL(i.price)}~ ${formatBRL(priceUnit)}` : formatBRL(priceUnit))}`
-      + ` = ${formatBRL(priceUnit * i.quantity)}`
+      + ` = ${formatBRL(total)}`
     )*/
 
-    subtotal += priceUnit * i.quantity;
+    subtotal += totalProduct;
   });
   //const desconto = subtotal - order.total;
 
