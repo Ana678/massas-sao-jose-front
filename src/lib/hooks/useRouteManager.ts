@@ -16,7 +16,7 @@ export function useRouteManager(
     [allClients, todayCities]);
 
     const todayRevenue = useMemo(() =>
-        orders.reduce((sum, o) => o.status === "ENTREGUE" ? sum + o.total : sum, 0),
+        orders.reduce((sum, o) => o.status === "ENTREGUE" ? sum + Number(o.total) : sum, 0),
     [orders]);
 
     const unpaidOrders = useMemo(() =>
@@ -59,8 +59,8 @@ export function useRouteManager(
                     // 2. Transforma o desconto (%) de volta em valor em Reais (R$)
                     if (product.discount && product.discount > 0) {
                         // Calcula o valor descontado
-                        const discountAmount = product.price * (product.discount / 100);
-                        const finalPrice = product.price - discountAmount;
+                        const discountAmount = Number(product.price) * (Number(product.discount) / 100);
+                        const finalPrice = Number(product.price) - discountAmount;
 
                         // Salva com 2 casas decimais (ex: 15.00)
                         clientPrices[pid] = Number(finalPrice.toFixed(2));
