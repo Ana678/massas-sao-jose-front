@@ -1,13 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
 import { type Order } from "@/lib/types";
+import { LocateFixed, MapPin } from "lucide-react";
 
 
 interface OrderCardProps {
     order: Order;
+    city?: string;
 }
 
-export default function OrderCard({ order }: OrderCardProps) {
+export default function OrderCard({ order, city }: OrderCardProps) {
     const originalPrice = order.products.reduce((sum, item) => sum + (item.quantity * item.price), 0);
     return (
         <Link
@@ -17,12 +19,18 @@ export default function OrderCard({ order }: OrderCardProps) {
             <div className={`mt-3 bg-card rounded-xl p-4 border transition-colors ${order.status === 'CANCELADO' ? 'border-destructive/20 opacity-70' : 'border-border'}`}>
                 <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col gap-0.5 w-100">
-                        <div className="flex gap-1">
-                            <p className="text-foreground text-sm font-normal">{order.clientName}</p>
+                        <div className="flex gap-2">
+                            <p className="text-foreground text-sm font-normal">
+                                {order.clientName} &nbsp;
+                                <div className="inline-flex items-center gap-0.5 text-foreground/60 text-xs">
+                                    <MapPin className="w-2.5 h-2.5 shrink-0" />
+                                    {city}
+                                </div>
+                            </p>
                             {
                                 order.status === 'ENTREGUE' ? (
 
-                                    <span className={`text-[10px] border ml-auto uppercase tracking-wider px-1.5 py-0.5 rounded-full align-middle border-primary/10 bg-primary/5 text-primary"`}>
+                                    <span className={`text-[10px] h-fit border ml-auto uppercase tracking-wider px-1.5 py-0.5 rounded-full align-middle border-primary/10 bg-primary/5 text-primary "`}>
                                         {order.status}
                                     </span>
                                 ) : (

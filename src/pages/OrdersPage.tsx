@@ -209,7 +209,7 @@ export default function OrdersPage() {
 
                 <div className="mt-4">
                     <SearchInput
-                        placeholder="Buscar cliente ou cidade na rota..."
+                        placeholder="Buscar pedido por nome de cliente..."
                         value={searchQuery}
                         onChange={setSearchQuery}
                     />
@@ -217,6 +217,8 @@ export default function OrdersPage() {
 			</section>
 
 			<section className="px-6 pb-6 space-y-2">
+                <p className="text-xs font-normal text-muted-foreground"> Mostrando {filtered.length} de {orders.length} pedidos</p>
+
 				{isLoading && <LoadingState message="Buscando histórico..." />}
 
 				{!isLoading && filtered.length === 0 && (
@@ -224,7 +226,7 @@ export default function OrdersPage() {
 				)}
 
 				{!isLoading &&
-					filtered.map((order) => <OrderCard key={order.id} order={order} />)}
+					filtered.map((order) => <OrderCard key={order.id} order={order} city={clients.find((c) => c.id === order.clientId)?.city } />)}
 			</section>
 		</div>
 	);
