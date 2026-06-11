@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { formatCurrency } from "@/lib/utils";
 import { type Order } from "@/lib/types";
-import { LocateFixed, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 
 interface OrderCardProps {
