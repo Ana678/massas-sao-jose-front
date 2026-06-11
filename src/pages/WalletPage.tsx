@@ -16,7 +16,7 @@ export default function CaixaPage() {
     const thisMonth = new Date().toISOString().slice(0, 7);
 
 
-    const monthOrders = orders.filter((o) => o.createdAt.startsWith(thisMonth) && o.isPaid);
+    const monthOrders = orders.filter((o) => o.createdAt.startsWith(thisMonth) && o.status === "ENTREGUE");
     const monthExpenses = expenses.filter((e) => e.createdAt.startsWith(thisMonth));
 
     const revenue = monthOrders.reduce((s, o) => s + Number(o.total), 0);
@@ -26,10 +26,10 @@ export default function CaixaPage() {
     const today = new Date().toISOString().slice(0, 10);
 
 
-    const todayOrders = orders.filter((o) => o.createdAt.startsWith(today) && o.isPaid);
+    const todayOrders = orders.filter((o) => o.createdAt.startsWith(today) && o.status === "ENTREGUE" );
     const todayRevenue = todayOrders.reduce((s, o) => s + Number(o.total), 0);
 
-    const pendingPaymentOrders = orders.filter((o) => !o.isPaid);
+    const pendingPaymentOrders = orders.filter((o) => !o.isPaid && o.status === "ENTREGUE");
     const pendingPaymentTotal = pendingPaymentOrders.reduce((s, o) => s + Number(o.total), 0);
     const isPositive = profit >= 0;
 

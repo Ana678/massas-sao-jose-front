@@ -75,7 +75,9 @@ export function useOrdersList(page = 1, limit = 100) {
 			const response = await api.get<OrderResponse[]>("/orders", {
 				params: { page, limit },
 			});
-			return response.data;
+
+            const ordersResult = response.data.map((order) => ({ ...order, total: Number(order.total) }));
+			return ordersResult;
 		},
 	});
 }
@@ -85,7 +87,8 @@ export function useOrderByID(id: string) {
 		queryKey: ["orders", id],
 		queryFn: async () => {
 			const response = await api.get<OrderResponse>(`/orders/${id}`);
-			return response.data;
+            const total = Number(response.data.total);
+			return { ...response.data, total };
 		},
 	});
 }
@@ -99,7 +102,8 @@ export function useOrdersListByCity(cityNames: string[], targetDate?: string) {
 				targetDate,
 			});
 
-			return response.data;
+            const ordersResult = response.data.map((order) => ({ ...order, total: Number(order.total) }));
+			return ordersResult;
 		},
 		enabled: cityNames.length > 0,
 	});
@@ -112,7 +116,8 @@ export function useOrdersByClient(clientId: string, targetDate?: string) {
 			const response = await api.get<OrderResponse[]>(`/orders/by-client/${clientId}`, {
 				params: { targetDate },
 			});
-			return response.data;
+            const ordersResult = response.data.map((order) => ({ ...order, total: Number(order.total) }));
+			return ordersResult;
 		},
 		enabled: !!clientId,
 	});

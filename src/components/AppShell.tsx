@@ -18,7 +18,7 @@ export default function AppShell({ children }: AppShellProps) {
     const isNovoPedido = pathname === "/order/new";
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-app-bg p-0 md:p-4">
+        <div className="flex items-center justify-center min-h-screen bg-app-bg p-0 md:p-4 md:py-6">
             <main className="w-full max-w-md bg-background min-h-screen relative overflow-y-auto no-scrollbar md:rounded-[2rem] shadow-2xl flex flex-col pb-24">
                 {children}
 

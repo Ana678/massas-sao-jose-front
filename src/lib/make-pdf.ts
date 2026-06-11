@@ -84,7 +84,7 @@ export async function exportOrdersPDF(orders: Order[], date: Date = new Date()) 
 
     // Resumo
     const totalPaid = orders.filter((o) => o.isPaid);
-    const total = totalPaid.reduce((s, o) => s + Number(o.total), 0);
+    const total = totalPaid.reduce((s, o) => s + o.total, 0);
     const itens = totalPaid.reduce(
         (s, o) => s + o.products.reduce((a, i) => a + Number(i.quantity), 0),
         0
