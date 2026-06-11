@@ -179,7 +179,7 @@ export default function NewOrderPage() {
 			deliveryFee: 0,
 			isPaid: deliveryType === "hoje" ? isPaid : false,
 			status: deliveryType === "hoje" ? "ENTREGUE" : "PENDENTE",
-			targetDate,
+			targetDate: deliveryType === "hoje" ? undefined : targetDate,
 			products: productsList.map((item) => ({
 				productId: item.productId,
 				quantity: item.qty,
