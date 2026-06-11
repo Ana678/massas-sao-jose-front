@@ -12,8 +12,9 @@ export const DELIVERY_ROUTES: Record<DayOfWeek, string[]> = {
 };
 
 export const ALL_CITIES = [
-    'São João do Sabugi', 'São Mamede', 'Caicó',
-    'Jardim de Piranhas', 'Timbaúba dos Batistas', 'Santa Luzia',
+    'Caicó', 'Ipueira', 'Jardim de Piranhas', 'João Pessoa',
+    'Larginas', 'Natal', 'Palma', 'Patos', 'Palma',
+    'Patos', 'Santa Luzia', 'São João do Sabugi', 'São Mamede', 'Timbaúba dos Batistas', 'Várzea'
 ];
 
 export const EXPENSE_CATEGORIES = {

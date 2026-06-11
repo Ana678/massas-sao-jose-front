@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useOrdersList } from "@/lib/hooks/useOrders";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -9,6 +9,8 @@ import EmptyState from "@/components/layout/EmptyState";
 import DateRangeInput from "@/components/form/DateRangeInput";
 import SelectField from "@/components/form/SelectField";
 import OrderCard from "@/components/OrderCard";
+import SearchInput from "@/components/form/SearchInput";
+import { ALL_CITIES } from "@/lib/data";
 
 export default function OrdersPage() {
 	const { data: orders = [], isLoading } = useOrdersList();
@@ -19,20 +21,25 @@ export default function OrdersPage() {
 	>("todos");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
-	const [clientFilter, setClientFilter] = useState("todos");
+    const [cityFilter, setCityFilter] = useState("todas");
 	const [methodFilter, setMethodFilter] = useState<
 		"todos" | "pix" | "cartao" | "dinheiro"
 	>("todos");
 
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
+
 	const advancedFiltersCount = [
 		startDate,
 		endDate,
-		clientFilter !== "todos",
+		cityFilter !== "todas",
 		methodFilter !== "todos",
 	].filter(Boolean).length;
-	const clientOptions = [
-		{ value: "todos", label: "Todos os clientes" },
-		...clients.map((client) => ({ value: client.id, label: client.name })),
+
+	const cityOptions = [
+		{ value: "todas", label: "Todas as cidades" },
+		...ALL_CITIES.map((city) => ({ value: city, label: city })),
 	];
 	const methodOptions = [
 		{ value: "todos", label: "Todas as formas" },
@@ -41,25 +48,53 @@ export default function OrdersPage() {
 		{ value: "dinheiro", label: "Dinheiro" },
 	];
 
-	const filtered = orders
-		.filter((o) => {
-			if (paymentFilter === "pago") return o.isPaid;
-			if (paymentFilter === "pendente") return o.status !== "ENTREGUE" || !o.isPaid;
-			if (paymentFilter === "agendados")
-				return (
-					o.createdAt.slice(0, 10) > new Date().toISOString().split("T")[0]
-				);
-			return true;
-		})
-		.filter((o) => !startDate || o.createdAt.slice(0, 10) >= startDate)
-		.filter((o) => !endDate || o.createdAt.slice(0, 10) <= endDate)
-		.filter(
-			(o) =>
-				clientFilter === "todos" ||
-				o.clientName === clients.find((c) => c.id === clientFilter)?.name,
-		)
-		.filter((o) => methodFilter === "todos" || o.paymentMethod === methodFilter)
-		.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const filtered = useMemo(() => {
+        let result = orders;
+
+        if (deferredSearchQuery) {
+            const lowerQuery = deferredSearchQuery.toLowerCase();
+            result = result.filter((o) =>
+                o.clientName.toLowerCase().includes(lowerQuery)
+            );
+        }
+
+        result = result.filter((o) => {
+            if (paymentFilter === "pago") return o.isPaid;
+            if (paymentFilter === "pendente") return o.status !== "ENTREGUE" || !o.isPaid;
+            if (paymentFilter === "agendados")
+                return o.createdAt.slice(0, 10) > new Date().toISOString().split("T")[0];
+            return true;
+        });
+
+        if (startDate) {
+            result = result.filter((o) => o.createdAt.slice(0, 10) >= startDate);
+        }
+        if (endDate) {
+            result = result.filter((o) => o.createdAt.slice(0, 10) <= endDate);
+        }
+
+        if (cityFilter !== "todas") {
+            const clientsInCity = clients.filter((c) => c.city === cityFilter);
+            const validClientIds = clientsInCity.map(c => c.id);
+            result = result.filter((o) => validClientIds.includes(o.clientId));
+        }
+
+        if (methodFilter !== "todos") {
+            result = result.filter((o) => o.paymentMethod === methodFilter);
+        }
+
+        return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    }, [
+        orders,
+        clients,
+        deferredSearchQuery,
+        paymentFilter,
+        startDate,
+        endDate,
+        cityFilter,
+        methodFilter
+    ]);
 
 	const pendingPaymentCount = orders.filter((o) => o.status !== "ENTREGUE" || !o.isPaid).length;
 
@@ -72,7 +107,7 @@ export default function OrdersPage() {
 	function clearAdvancedFilters() {
 		setStartDate("");
 		setEndDate("");
-		setClientFilter("todos");
+		setCityFilter("todas");
 		setMethodFilter("todos");
 	}
 
@@ -143,10 +178,10 @@ export default function OrdersPage() {
 						/>
 
 						<SelectField
-							label="Cliente"
-							value={clientFilter}
-							onChange={setClientFilter}
-							options={clientOptions}
+							label="Cidade"
+							value={cityFilter}
+							onChange={setCityFilter}
+							options={cityOptions}
 							selectClassName="h-10 text-xs"
 						/>
 
@@ -171,6 +206,14 @@ export default function OrdersPage() {
 						)}
 					</div>
 				</Collapsible>
+
+                <div className="mt-4">
+                    <SearchInput
+                        placeholder="Buscar cliente ou cidade na rota..."
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                    />
+                </div>
 			</section>
 
 			<section className="px-6 pb-6 space-y-2">
