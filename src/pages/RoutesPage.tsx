@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useDeferredValue } from "react";
+import SearchInput from "@/components/form/SearchInput";
+
 import { Cloud, Plus, AlertCircle } from "lucide-react";
 import { Link } from '@tanstack/react-router';
 import { toast } from "sonner";
@@ -40,6 +42,32 @@ export default function RoutesPage() {
 
     const { mutate: createOrder, isPending: isCreating } = useCreateOrder();
     const { mutate: updateOrder, isPending: isUpdating } = useUpdateOrder();
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const deferredSearchQuery = useDeferredValue(searchQuery);
+
+    const filteredPending = useMemo(() => {
+        // Se estiver vazio, não gasta processamento com .filter()
+        if (!deferredSearchQuery) return routeManager.pending;
+
+        const lowerQuery = deferredSearchQuery.toLowerCase();
+
+        return routeManager.pending.filter((c) =>
+            c.name.toLowerCase().includes(lowerQuery) ||
+            c.city.toLowerCase().includes(lowerQuery)
+        );
+    }, [routeManager.pending, deferredSearchQuery]);
+
+    const filteredDone = useMemo(() => {
+        if (!deferredSearchQuery) return routeManager.done;
+
+        const lowerQuery = deferredSearchQuery.toLowerCase();
+
+        return routeManager.done.filter((c) =>
+            c.name.toLowerCase().includes(lowerQuery) ||
+            c.city.toLowerCase().includes(lowerQuery)
+        );
+    }, [routeManager.done, deferredSearchQuery]);
 
     const handleToggleSkip = (clientId: string) => {
         const updated = toggleSkipClient(skipKey, clientId);
@@ -215,7 +243,14 @@ export default function RoutesPage() {
                 </div>
 
                 <div className="space-y-3">
-                    {routeManager.pending.map((client) => (
+                    <div className="mb-4">
+                        <SearchInput
+                            placeholder="Buscar cliente ou cidade na rota..."
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                        />
+                    </div>
+                    {filteredPending.map((client) => (
                         <ClientRouteCard
                             key={client.id}
                             client={client}
@@ -228,7 +263,7 @@ export default function RoutesPage() {
                         />
                     ))}
 
-                    {routeManager.done.map((client) => (
+                    {filteredDone.map((client) => (
                         <ClientDoneCard key={client.id} client={client} order={orders.find(o => o.clientId === client.id)} />
                     ))}
 
