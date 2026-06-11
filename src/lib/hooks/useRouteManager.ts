@@ -16,12 +16,16 @@ export function useRouteManager(
     [allClients, todayCities]);
 
     const todayRevenue = useMemo(() =>
-        orders.reduce((sum, o) => o.status === "ENTREGUE" ? sum + Number(o.total) : sum, 0),
+        orders.reduce((sum, o) => o.status === "ENTREGUE" && o.createdAt.startsWith(todayStr) ? sum + Number(o.total) : sum, 0),
     [orders]);
 
     const unpaidOrders = useMemo(() =>
-        orders.filter((o) => !o.isPaid && o.createdAt.startsWith(todayStr)),
+        orders.filter((o) => !o.isPaid && o.status === "ENTREGUE" && o.createdAt.startsWith(todayStr)),
     [orders, todayStr]);
+
+    const unpaidRevenue = useMemo(() =>
+        unpaidOrders.reduce((sum, o) => sum + Number(o.total), 0),
+    [unpaidOrders]);
 
     const checkIfDeliveredToday = (client: Client) => {
         return orders.some(o => {
@@ -126,6 +130,7 @@ export function useRouteManager(
         skippedClientsList,
         todayRevenue,
         unpaidOrders,
+        unpaidRevenue,
         quantities,
         prices,
         adjustQty,

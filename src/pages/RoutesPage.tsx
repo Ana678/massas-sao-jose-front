@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useDeferredValue } from "react";
 import SearchInput from "@/components/form/SearchInput";
 
-import { Cloud, Plus, AlertCircle } from "lucide-react";
+import { Cloud, Plus, AlertCircle, ArrowRight } from "lucide-react";
 import { Link } from '@tanstack/react-router';
 import { toast } from "sonner";
 import Logo from "@/assets/logo.svg?react";
@@ -216,24 +216,33 @@ export default function RoutesPage() {
             </section>
 
             <section className="px-6 py-4">
+
+                {routeManager.unpaidOrders.length > 0 && (
+                    <Link to="/orders" search={{ dia: undefined }}>
+                        <button
+                            className="w-full mb-3 bg-accent/10 text-foreground rounded-xl p-4 border border-accent/30 flex items-center justify-between gap-3 text-left transition-transform active:scale-[0.98]"
+                        >
+                            <div className="flex items-start gap-3 min-w-0">
+                                <AlertCircle className="w-5 h-5 text-accent mt-0.5 shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-normal">Recebimentos em aberto de hoje</p>
+                                    <p className="text-pretty/80 text-xs mt-1">
+                                        {routeManager.unpaidOrders.length} pedidos • {formatCurrency(routeManager.unpaidRevenue)} em aberto
+                                    </p>
+                                </div>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground mt-1 shrink-0" />
+                        </button>
+                    </Link>
+
+                )}
+
                 <Link to="/order/new" search={{ dia: undefined }}>
                     <button className="w-full bg-accent text-accent-foreground rounded-2xl p-4 flex items-center justify-center gap-3 shadow-sm">
                         <Plus className="w-6 h-6" />
                         <span className="text-base tracking-wide font-normal">Realizar Venda</span>
                     </button>
                 </Link>
-
-                {routeManager.unpaidOrders.length > 0 && (
-                    <Link to="/orders" search={{ dia: undefined }}>
-                        <button className="w-full mt-3 bg-card text-foreground border border-border rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
-                            <span className="flex items-center gap-2 text-sm">
-                                <AlertCircle className="w-5 h-5 text-accent" />
-                                Pedidos não pagos
-                            </span>
-                            <span className="text-primary text-sm font-medium">{routeManager.unpaidOrders.length}</span>
-                        </button>
-                    </Link>
-                )}
             </section>
 
             <section className="px-6 pt-2 grow pb-24">
