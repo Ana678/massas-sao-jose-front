@@ -85,9 +85,8 @@ export default function RoutesPage() {
         }
     }, [allClients.length, orders.length]);
 
-    const handleSavePendingOrder = () => {
+    const handleSavePendingOrder = (deliveryData?: { status: string, isPaid: boolean, paymentMethod: string }) => {
         if (!editingClient) return;
-
         const clientId = editingClient.id;
         const clientQty = routeManager.quantities[clientId] || {};
         const clientPrices = routeManager.prices[clientId] || {};
@@ -98,7 +97,6 @@ export default function RoutesPage() {
                 const product = products.find(p => p.id === productId);
                 const originalPrice = product?.price || 0;
                 const customPrice = clientPrices[productId];
-
                 let discountPercentage = 0;
 
                 if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
@@ -120,21 +118,27 @@ export default function RoutesPage() {
 
         const existingOrder = orders.find(o => o.clientId === clientId);
 
+        const isOrderFromToday = existingOrder?.createdAt.slice(0, 10) === todayStr;
+
+        const finalStatus = deliveryData?.status || (isOrderFromToday ? existingOrder.status : "PENDENTE");
+        const finalIsPaid = deliveryData !== undefined ? deliveryData.isPaid : (isOrderFromToday ? existingOrder.isPaid : false);
+        const finalPaymentMethod = deliveryData?.paymentMethod || (isOrderFromToday ? existingOrder.paymentMethod : "dinheiro");
+
         const payload = {
             clientId: clientId,
-            paymentMethod: existingOrder?.paymentMethod || "dinheiro",
-            isPaid: existingOrder?.isPaid || false,
-            status: "PENDENTE",
+            paymentMethod: finalPaymentMethod,
+            isPaid: finalIsPaid,
+            status: finalStatus,
             targetDate: todayStr,
             products: orderProducts,
         };
 
-        if (existingOrder) {
+        if (existingOrder && isOrderFromToday) {
             updateOrder(
                 { id: existingOrder.id, ...payload },
                 {
                     onSuccess: () => {
-                        toast.success("Pedido do cliente atualizado!");
+                        toast.success(finalStatus === "ENTREGUE" ? "Pedido entregue com sucesso!" : "Pedido atualizado!");
                         setEditingClient(null);
                     }
                 }
@@ -144,7 +148,7 @@ export default function RoutesPage() {
                 payload,
                 {
                     onSuccess: () => {
-                        toast.success("Pedido adicionado à rota!");
+                        toast.success(finalStatus === "ENTREGUE" ? "Pedido criado e entregue!" : "Pedido adicionado à rota!");
                         setEditingClient(null);
                     }
                 }
