@@ -250,7 +250,7 @@ export default function RoutesPage() {
             </section>
 
             <section className="px-6 pt-2 grow pb-24">
-                <div className="flex justify-between items-end mb-3">
+                <div className="flex justify-between items-center mb-3">
                     <h2 className="font-display text-lg tracking-tight">Rota de Hoje</h2>
                     <span className="text-muted-foreground text-xs">{routeManager.pending.length} visitas restantes</span>
                 </div>
@@ -277,9 +277,9 @@ export default function RoutesPage() {
                     ))}
 
                     {filteredDone.length > 0 && (
-                        <div className="flex flex-col mb-3">
+                        <div className="flex flex-col pt-3">
                             <h2 className="font-display text-lg tracking-tight">Entregas Concluídas</h2>
-                            <span className="text-muted-foreground text-sm">Clique para detalhar o pedido</span>
+                            <span className="text-muted-foreground text-xs">clique para detalhar o pedido</span>
                         </div>
                     )}
 
