@@ -276,6 +276,16 @@ export default function RoutesPage() {
                         />
                     ))}
 
+                    {filteredDone.length > 0 && (
+                        <div className="flex flex-col mb-3">
+                            <h2 className="font-display text-lg tracking-tight">Entregas Concluídas</h2>
+                            <span className="text-muted-foreground text-sm">Clique para detalhar o pedido</span>
+                        </div>
+                    )}
+
+
+
+
                     {filteredDone.map((client) => (
                         <ClientDoneCard key={client.id} client={client} order={orders.find(o => o.clientId === client.id)} />
                     ))}
