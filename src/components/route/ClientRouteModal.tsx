@@ -45,12 +45,12 @@ export function ClientRouteModal({
 
     const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
 
-    const sortedProducts = [...products].sort((a, b) => {
-        const qtyA = quantities[a.id] || 0;
-        const qtyB = quantities[b.id] || 0;
-        if (qtyB !== qtyA) return qtyB - qtyA;
-        return a.name.localeCompare(b.name);
-    });
+    // const sortedProducts = [...products].sort((a, b) => {
+    //     const qtyA = quantities[a.id] || 0;
+    //     const qtyB = quantities[b.id] || 0;
+    //     if (qtyB !== qtyA) return qtyB - qtyA;
+    //     return a.name.localeCompare(b.name);
+    // });
 
     const handleSave = () => {
         if (!onSave) {
@@ -122,7 +122,7 @@ export function ClientRouteModal({
                         <p className="text-muted-foreground text-[10px] uppercase tracking-widest mb-2">Itens com desconto/preço</p>
                         <LineItemsList
                             items={items}
-                            products={sortedProducts}
+                            products={products}
                             onAdjustQty={(pid, delta) => onAdjustQty(pid, delta)}
                             onSetUnitPrice={(pid, price) => onSetUnitPrice(pid, price)}
                             onRemove={(pid) => onRemove(pid)}
