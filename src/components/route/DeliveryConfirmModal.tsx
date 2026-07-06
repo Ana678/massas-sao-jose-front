@@ -38,7 +38,6 @@ export function DeliveryConfirmModal({
                 return {
                     productId: pid,
                     quantity: q,
-                    unitPrice: originalPrice,
                     discount: discountValue
                 };
             });
@@ -52,6 +51,7 @@ export function DeliveryConfirmModal({
             clientId: client.id,
             paymentMethod: deliveryPaid ? deliveryPayment : "dinheiro",
             isPaid: deliveryPaid,
+            products: items,
         }, {
             onSuccess: () => {
                 toast.success("Entrega registada e conciliada!");

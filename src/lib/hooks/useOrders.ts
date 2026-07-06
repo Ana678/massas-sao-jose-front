@@ -50,11 +50,32 @@ export interface OrderResponse {
 	}[];
 }
 
+export interface PaginatedOrdersResponse {
+    data: OrderResponse[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface OrdersFilters {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    city?: string;
+    paymentMethod?: string;
+    paymentFilter?: string;
+}
+
 interface ConfirmDeliveryInput {
 	clientId: string;
 	paymentMethod?: string;
 	deliveryFee?: number;
 	isPaid?: boolean;
+    products?: {
+		productId: string;
+		quantity: number;
+		discount?: number;
+	}[];
 }
 
 export interface ProductionEstimateResponse {
@@ -68,17 +89,63 @@ export interface ProductionEstimateResponse {
 	}[];
 }
 
-export function useOrdersList(page = 1, limit = 100) {
+export interface DashboardSummaryResponse {
+    monthRevenue: number;
+    monthOrdersCount: number;
+    todayRevenue: number;
+    todayOrdersCount: number;
+    pendingPaymentTotal: number;
+    pendingOrdersCount: number;
+}
+
+export function useDashboardSummary(monthStart: string, monthEnd: string, today: string) {
+    return useQuery({
+        queryKey: ["dashboard-summary", monthStart, monthEnd, today],
+        queryFn: async () => {
+            const response = await api.get<DashboardSummaryResponse>("/orders/dashboard/summary", {
+                params: { monthStart, monthEnd, today }
+            });
+            return response.data;
+        },
+        staleTime: 1000 * 60 * 2,
+    });
+}
+
+export function useExportOrders() {
+    return useMutation({
+        mutationFn: async (params: { startDate: string; endDate: string; status: string }) => {
+            const response = await api.get("/orders/export", { params });
+            return response.data;
+        },
+    });
+}
+
+export function useOrdersList(page = 1, limit = 50, filters: OrdersFilters = {}) {
 	return useQuery({
-		queryKey: ["orders", page, limit],
+		queryKey: ["orders", page, limit, filters],
 		queryFn: async () => {
-			const response = await api.get<OrderResponse[]>("/orders", {
-				params: { page, limit },
+
+            const cleanFilters = Object.fromEntries(
+                Object.entries(filters).filter(([_, value]) => value !== undefined && value !== "" && value !== "todos" && value !== "todas")
+            );
+
+			const response = await api.get<PaginatedOrdersResponse>("/orders", {
+				params: { page, limit, ...cleanFilters },
 			});
 
-            const ordersResult = response.data.map((order) => ({ ...order, total: Number(order.total) }));
-			return ordersResult;
+            const ordersResult = response.data.data.map((order) => ({ ...order, total: Number(order.total) }));
+			return {
+                data: ordersResult,
+                total: response.data.total,
+                page: response.data.page,
+                limit: response.data.limit
+            };
 		},
+        // define um tempo em que os dados sao guardados em cache
+        staleTime: 1000 * 60 * 2,
+
+        // define um tempo em que os dados sao guardados em cache apos a ultima vez que foram acessados
+        gcTime: 1000 * 60 * 10,
 	});
 }
 

@@ -4,42 +4,46 @@ import PageHeader from "@/components/PageHeader";
 import { exportMonthlyClosingPDF } from "@/lib/make-pdf";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
-import { useOrdersList } from "@/lib/hooks/useOrders";
+import { useDashboardSummary, useExportOrders } from "@/lib/hooks/useOrders";
 import { useExpensesList } from "@/lib/hooks/useExpenses";
 import StatCard from "@/components/ui/StatCard";
 import DualStatCard from "@/components/ui/DualStatCard";
 
 export default function CaixaPage() {
-    const { data: orders = [] } = useOrdersList();
+    const today = new Date().toISOString().slice(0, 10);
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+
+    const monthStart = `${thisMonth}-01`;
+    const monthEnd = `${thisMonth}-${lastDayOfMonth}`;
+
+    const { data: summary } = useDashboardSummary(monthStart, monthEnd, today);
     const { data: expenses = [] } = useExpensesList();
 
-    const thisMonth = new Date().toISOString().slice(0, 7);
-
-
-    const monthOrders = orders.filter((o) => o.createdAt.startsWith(thisMonth) && o.status === "ENTREGUE");
     const monthExpenses = expenses.filter((e) => e.createdAt.startsWith(thisMonth));
-
-    const revenue = monthOrders.reduce((s, o) => s + Number(o.total), 0);
     const costs = monthExpenses.reduce((s, e) => s + Number(e.value), 0);
+
+    const revenue = summary?.monthRevenue || 0;
     const profit = revenue - costs;
-
-    const today = new Date().toISOString().slice(0, 10);
-
-
-    const todayOrders = orders.filter((o) => o.createdAt.startsWith(today) && o.status === "ENTREGUE" );
-    const todayRevenue = todayOrders.reduce((s, o) => s + Number(o.total), 0);
-
-    const pendingPaymentOrders = orders.filter((o) => !o.isPaid && o.status === "ENTREGUE");
-    const pendingPaymentTotal = pendingPaymentOrders.reduce((s, o) => s + Number(o.total), 0);
     const isPositive = profit >= 0;
+
+    const exportMutation = useExportOrders();
 
     async function handleClosing() {
         try {
-            await exportMonthlyClosingPDF(monthOrders, monthExpenses, thisMonth);
-            toast.success("Fechamento gerado!");
+            toast.loading("Reunindo dados do mês...", { id: "pdf-toast" });
+
+            const orders = await exportMutation.mutateAsync({
+                startDate: monthStart,
+                endDate: monthEnd,
+                status: "ENTREGUE"
+            });
+
+            await exportMonthlyClosingPDF(orders, monthExpenses, thisMonth);
+            toast.success("Fechamento gerado!", { id: "pdf-toast" });
         } catch (e) {
             console.error(e);
-            toast.error("Erro ao gerar PDF");
+            toast.error("Erro ao gerar PDF", { id: "pdf-toast" });
         }
     }
 
@@ -51,8 +55,7 @@ export default function CaixaPage() {
                 rightAction={
                     <button
                         onClick={handleClosing}
-                        className="bg-primary text-primary-foreground px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs shadow-sm transition-transform active:scale-[0.98]"
-                        aria-label="Fechamento mensal PDF"
+                        className="bg-primary text-primary-foreground px-3 py-2 rounded-xl flex items-center gap-1.5 text-xs shadow-sm"
                     >
                         <FileDown className="w-4 h-4" />
                         Fechamento
@@ -61,12 +64,7 @@ export default function CaixaPage() {
             />
 
             <section className="px-6 py-2">
-                <StatCard
-                    label="Saldo do mês"
-                    value={formatCurrency(profit)}
-                    subtitle={isPositive ? "Caixa positivo" : "Atenção ao caixa"}
-                    variant={isPositive ? "success" : "destructive"}
-                />
+                <StatCard label="Saldo do mês" value={formatCurrency(profit)} variant={isPositive ? "success" : "destructive"} />
             </section>
 
             <section className="px-6 py-2">
@@ -93,13 +91,13 @@ export default function CaixaPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-normal">Vendas de hoje</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">{todayOrders.length} pedidos concluídos</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">{summary?.todayOrdersCount} pedidos concluídos</p>
                     </div>
-                    <p className="text-primary text-xl tracking-tight font-normal whitespace-nowrap">{formatCurrency(todayRevenue)}</p>
+                    <p className="text-primary text-xl tracking-tight font-normal whitespace-nowrap">{formatCurrency(summary?.todayRevenue)}</p>
                 </div>
             </section>
 
-            {pendingPaymentOrders.length > 0 && (
+            {(summary?.pendingOrdersCount || 0) > 0 && (
                 <section className="px-6 py-2">
                     <Link to="/orders">
                         <button
@@ -110,7 +108,7 @@ export default function CaixaPage() {
                                 <div className="min-w-0">
                                     <p className="text-sm font-normal">Recebimentos em aberto</p>
                                     <p className="text-pretty/80 text-xs mt-1">
-                                        {pendingPaymentOrders.length} pedidos entregues • {formatCurrency(pendingPaymentTotal)} em aberto
+                                        {summary?.pendingOrdersCount || 0} pedidos entregues • {formatCurrency(summary?.pendingPaymentTotal || 0)} em aberto
                                     </p>
                                 </div>
                             </div>
