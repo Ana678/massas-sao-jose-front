@@ -29,12 +29,11 @@ export default function ClientCard({ client }: ClientCardProps) {
                     {client.socialReason && !compact && (
                         <p className="text-muted-foreground text-xs mt-0.5 truncate">{client.socialReason}</p>
                     )}
+                    <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{client.city}</span>
+                    </div>
                     <div className="flex gap-3">
-                        <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                            <MapPin className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{client.city}</span>
-                        </div>
-
                         <div className="flex items-center gap-1 text-muted-foreground text-xs">
                             <Phone className="w-3 h-3 shrink-0" />
                             <span>{client.phone}</span>
