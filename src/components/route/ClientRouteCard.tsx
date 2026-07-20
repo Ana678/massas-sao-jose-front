@@ -30,8 +30,8 @@ export function ClientRouteCard({
         .filter(([, q]) => q > 0)
         .map(([pid, q]) => {
             const p = products.find(x => x.id === pid);
-            const unitPrice = prices[pid] !== undefined ? prices[pid] : (p?.sellPrice || 0);
-            const originalPrice = p?.sellPrice || 0;
+            const unitPrice = prices[pid] !== undefined ? prices[pid] : Number(p?.price || 0);
+            const originalPrice = Number(p?.price || 0);
             return { qty: q, unitPrice, originalPrice, productId: pid };
         });
 

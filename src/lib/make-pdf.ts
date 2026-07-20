@@ -1,4 +1,6 @@
 import jsPDF from "jspdf";
+import { netUnitPrice } from "@/lib/discount";
+import { toDateStr } from "@/lib/date";
 import autoTable from "jspdf-autotable";
 import type { Order, Expense, Client } from "./types";
 import { formatCurrency } from "./utils";
@@ -136,7 +138,7 @@ export async function exportOrdersPDF(orders: Order[], date: Date = new Date()) 
     });
 
     footer(doc);
-    doc.save(`pedidos-${date.toISOString().slice(0, 10)}.pdf`);
+    doc.save(`pedidos-${toDateStr(date)}.pdf`);
 }
 
 /** Fechamento mensal: receita, despesas, lucro, breakdown */
@@ -230,7 +232,8 @@ export async function exportMonthlyClosingPDF(
     const orderRows = monthOrders.map((o) => [
         new Date(o.createdAt).toLocaleDateString("pt-BR"),
         o.clientName,
-        o.products.reduce((s, i) => s + i.quantity, 0),
+        // quantity vem como string da API: sem Number() o + vira concatenação ("01515")
+        o.products.reduce((s, i) => s + Number(i.quantity), 0),
         o.paymentMethod,
         formatBRL(o.total),
     ]);
@@ -386,7 +389,7 @@ export async function exportOrderPDF(order: Order, client?: Client) {
 
   // Itens
   const rows = order.products.map((i) => {
-    const priceUnit = Number(Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100)).toFixed(2);
+    const priceUnit = netUnitPrice(Number(i.price || 0), i.discount, i.discountType).toFixed(2);
 
     // const priceCell = priceUnit < i.price - 0.01
     //   ? `${formatBRL(i.price)} (por ${formatBRL(priceUnit)})`
@@ -470,7 +473,7 @@ export function buildOrderWhatsAppMessage(order: Order, client?: Client): string
   let subtotal = 0;
   order.products.forEach((i) => {
 
-    const priceUnit = Number(Number(i.price || 0) * (1 - Number((i.discount || 0)) / 100)).toFixed(2);
+    const priceUnit = netUnitPrice(Number(i.price || 0), i.discount, i.discountType).toFixed(2);
 
     const totalProduct =  Number(priceUnit) * i.quantity;
 
@@ -605,5 +608,5 @@ export function exportDailySalesSummaryPDF(orders: Order[], date: Date = new Dat
   });
 
   footer(doc);
-  doc.save(`resumo-vendas-${date.toISOString().slice(0, 10)}.pdf`);
+  doc.save(`resumo-vendas-${toDateStr(date)}.pdf`);
 }

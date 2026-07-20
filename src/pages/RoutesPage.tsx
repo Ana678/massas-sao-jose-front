@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo, useDeferredValue } from "react";
+import { toDateStr } from "@/lib/date";
+import { buildDiscount, DEFAULT_DISCOUNT_TYPE } from "@/lib/discount";
 import SearchInput from "@/components/form/SearchInput";
 
 import { Cloud, Plus, AlertCircle, ArrowRight } from "lucide-react";
@@ -21,7 +23,7 @@ import { ClientRouteModal } from "@/components/route/ClientRouteModal";
 
 export default function RoutesPage() {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = toDateStr(today);
     const overrides = getRouteOverrides();
     const hasOverride = overrides.some((o) => o.date === todayStr);
     const todayCities = getCitiesForToday(today, overrides);
@@ -90,24 +92,38 @@ export default function RoutesPage() {
         const clientId = editingClient.id;
         const clientQty = routeManager.quantities[clientId] || {};
         const clientPrices = routeManager.prices[clientId] || {};
+        const clientTypes = routeManager.discountTypes[clientId] || {};
+
+        const existingOrder = orders.find(o => o.clientId === clientId);
+
+        const isOrderFromToday = existingOrder?.createdAt.slice(0, 10) === todayStr;
+
+        // Atualizar reaproveita o pedido: o backend mantém o unitPrice congelado, então
+        // o desconto tem que ser calculado sobre ESSE preço. Criar gera snapshot novo com
+        // o preço atual do catálogo. Usar a base errada reprecifica o item ao salvar.
+        const isUpdate = Boolean(existingOrder && isOrderFromToday);
 
         const orderProducts = Object.entries(clientQty)
             .filter(([, qty]) => qty > 0)
             .map(([productId, quantity]) => {
-                const product = products.find(p => p.id === productId);
-                const originalPrice = product?.price || 0;
-                const customPrice = clientPrices[productId];
-                let discountPercentage = 0;
+                const catalogPrice = products.find(p => p.id === productId)?.price;
+                const snapshotPrice = isUpdate
+                    ? existingOrder?.products.find(p => p.id === productId)?.price
+                    : undefined;
 
-                if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
-                    const calc = ((originalPrice - customPrice) / originalPrice) * 100;
-                    discountPercentage = Number(calc.toFixed(2));
-                }
+                const originalPrice = Number(snapshotPrice ?? catalogPrice ?? 0);
+                const customPrice = clientPrices[productId];
+                const { discount, discountType } = buildDiscount(
+                    originalPrice,
+                    customPrice,
+                    clientTypes[productId] ?? DEFAULT_DISCOUNT_TYPE,
+                );
 
                 return {
                     productId,
                     quantity,
-                    discount: discountPercentage
+                    discount,
+                    discountType
                 };
             });
 
@@ -115,10 +131,6 @@ export default function RoutesPage() {
             toast.error("Adicione pelo menos um item para salvar o pedido.");
             return;
         }
-
-        const existingOrder = orders.find(o => o.clientId === clientId);
-
-        const isOrderFromToday = existingOrder?.createdAt.slice(0, 10) === todayStr;
 
         const finalStatus = deliveryData?.status || (isOrderFromToday ? existingOrder.status : "PENDENTE");
         const finalIsPaid = deliveryData !== undefined ? deliveryData.isPaid : (isOrderFromToday ? existingOrder.isPaid : false);
@@ -306,6 +318,7 @@ export default function RoutesPage() {
                     products={products}
                     quantities={routeManager.quantities[deliveryClient.id] || {}}
                     prices={routeManager.prices[deliveryClient.id] || {}}
+                    discountTypes={routeManager.discountTypes[deliveryClient.id] || {}}
                     onClose={() => setDeliveryClient(null)}
                 />
             )}
@@ -322,8 +335,10 @@ export default function RoutesPage() {
                     products={products}
                     quantities={routeManager.quantities[editingClient.id] || {}}
                     prices={routeManager.prices[editingClient.id] || {}}
+                    discountTypes={routeManager.discountTypes[editingClient.id] || {}}
                     onAdjustQty={(pid, delta) => routeManager.adjustQty(editingClient.id, pid, delta)}
                     onSetUnitPrice={(pid, price) => routeManager.setUnitPrice(editingClient.id, pid, price)}
+                    onSetDiscountType={(pid, type) => routeManager.setDiscountType(editingClient.id, pid, type)}
                     onRemove={(pid) => routeManager.removeItem(editingClient.id, pid)}
                     onClose={() => setEditingClient(null)}
                     onSave={handleSavePendingOrder}

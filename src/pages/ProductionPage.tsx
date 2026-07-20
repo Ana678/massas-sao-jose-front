@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { toDateStr } from "@/lib/date";
 import {
 	DELIVERY_ROUTES,
 	type DayOfWeek,
@@ -57,7 +58,7 @@ export default function ProductionPage() {
 		return date;
 	}, [selectedDay]);
 
-	const targetDateStr = targetDateObj.toISOString().slice(0, 10);
+	const targetDateStr = toDateStr(targetDateObj);
 	const formattedDateView = targetDateObj.toLocaleDateString("pt-BR", {
 		day: "2-digit",
 		month: "2-digit",
@@ -129,6 +130,13 @@ export default function ProductionPage() {
 		const productsList = Object.entries(orderToSave)
 			.filter(([, qty]) => Number(qty) > 0)
 			.map(([pid, qty]) => ({ productId: pid, quantity: Number(qty) }));
+
+		// Zerar todos os itens deixa orderToSave = {} (que é truthy): sem esta guarda,
+		// o create ia com products: [] e o update apagava todos os itens do pedido.
+		if (productsList.length === 0) {
+			toast.error("Adicione pelo menos um item para salvar a encomenda.");
+			return;
+		}
 
 		const existingOrder = latestOrders.find((o) => o.clientId === clientId);
 

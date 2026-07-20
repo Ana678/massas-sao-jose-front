@@ -17,6 +17,7 @@ import {
 import { useProducts } from "@/lib/hooks/useProduct";
 import { exportOrderPDF, shareOrderWhatsApp } from "@/lib/make-pdf";
 import LineItemsList from "@/components/LineItemsList";
+import { buildDiscount, netUnitPrice, DEFAULT_DISCOUNT_TYPE, type DiscountType } from "@/lib/discount";
 
 type PaymentMethod = "dinheiro" | "pix" | "cartao";
 
@@ -35,6 +36,7 @@ export default function EditOrderPage() {
 	const [status, setStatus] = useState("PENDENTE");
 	const [cart, setCart] = useState<Record<string, number>>({});
     const [prices, setPrices] = useState<Record<string, number>>({});
+    const [discountTypes, setDiscountTypes] = useState<Record<string, DiscountType>>({});
 
 	useEffect(() => {
         if (order) {
@@ -44,19 +46,27 @@ export default function EditOrderPage() {
 
             const initialQty: Record<string, number> = {};
             const initialPrices: Record<string, number> = {};
+            const initialTypes: Record<string, DiscountType> = {};
 
 			order?.products.forEach((product) => {
 				initialQty[product.id] = Number(product.quantity);
 
-                const discount = product.discount || 0;
-                const originalPrice = product.price || 0;
-                const finalPrice = originalPrice - (originalPrice * (discount / 100));
+                const finalPrice = netUnitPrice(
+                    product.price || 0,
+                    product.discount,
+                    product.discountType,
+                );
 
                 initialPrices[product.id] = Number(finalPrice.toFixed(2));
+
+                // Preserva como a venda foi negociada: pedido antigo sem o campo
+                // é PERCENT, que era o único tipo que existia.
+                initialTypes[product.id] = product.discountType ?? "PERCENT";
 			});
 
 			setCart(initialQty);
             setPrices(initialPrices);
+            setDiscountTypes(initialTypes);
 		}
 	}, [order]);
 
@@ -68,23 +78,29 @@ export default function EditOrderPage() {
 					const product = products.find((p) => p.id === productId);
 					const orderProduct = order?.products.find((p) => p.id === productId);
 
-					const originalPrice = product?.price ?? orderProduct?.price ?? 0;
+					// Preço congelado do pedido primeiro: o item que já existe mantém o
+					// unitPrice da época no backend. Usar o preço atual do catálogo aqui
+					// faz o desconto ser calculado contra a base errada. Só item NOVO
+					// (ausente em order.products) cai no preço atual.
+					const originalPrice = Number(orderProduct?.price ?? product?.price ?? 0);
 					const customPrice = prices[productId] !== undefined ? prices[productId] : originalPrice;
 
-					let discountPercentage = 0;
-					if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
-						discountPercentage = Number((((originalPrice - customPrice) / originalPrice) * 100).toFixed(2));
-					}
+					const { discount, discountType } = buildDiscount(
+						originalPrice,
+						customPrice,
+						discountTypes[productId] ?? DEFAULT_DISCOUNT_TYPE,
+					);
 
 					return {
 						productId,
 						productName: product?.name || orderProduct?.name || "Produto",
 						qty,
 						unitPrice: originalPrice,
-						discount: discountPercentage
+						discount,
+						discountType
 					};
 				}),
-		[cart, prices, products, order?.products],
+		[cart, prices, discountTypes, products, order?.products],
 	);
 
 	const itemsForList = Object.entries(cart)
@@ -92,12 +108,19 @@ export default function EditOrderPage() {
 		.map(([pid, qty]) => {
 			const p = products.find(x => x.id === pid);
 			const orderProduct = order?.products.find(x => x.id === pid);
-			const originalPrice = p?.price ?? orderProduct?.price ?? 0;
+			const originalPrice = Number(orderProduct?.price ?? p?.price ?? 0);
 			const unitPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
-			return { productId: pid, qty, unitPrice };
+			return {
+				productId: pid,
+				qty,
+				unitPrice,
+				originalPrice,
+				discountType: discountTypes[pid] ?? DEFAULT_DISCOUNT_TYPE,
+			};
 		});
 
 	const newTotal = itemsForList.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
+	const totalItems = itemsForList.reduce((sum, item) => sum + item.qty, 0);
 	const newOriginalPrice = productsList.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
 
 	const sortedProducts = [...products].sort((a, b) => {
@@ -129,7 +152,8 @@ export default function EditOrderPage() {
 				products: productsList.map((item) => ({
 					productId: item.productId,
 					quantity: item.qty,
-                    discount: item.discount
+                    discount: item.discount,
+                    discountType: item.discountType
 				})),
 			});
 			toast.success("Pedido atualizado");
@@ -223,7 +247,7 @@ export default function EditOrderPage() {
                     </div>
 					<div className="flex items-center justify-between border-t border-border mt-4 pt-3 text-xs text-muted-foreground">
 						<span>
-							{newTotal} {newTotal === 1 ? "item" : "itens"}
+							{totalItems} {totalItems === 1 ? "item" : "itens"}
 						</span>
 						<span>
 							{new Date(order.createdAt).toLocaleString("pt-BR", {
@@ -244,6 +268,9 @@ export default function EditOrderPage() {
 					products={sortedProducts}
 					onAdjustQty={adjustQty}
 					onSetUnitPrice={setUnitPrice}
+					onSetDiscountType={(pid, type) =>
+						setDiscountTypes((prev) => ({ ...prev, [pid]: type }))
+					}
 					onRemove={removeItem}
 				/>
 			</section>
