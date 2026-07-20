@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { RouteOverride } from "./types";
+import { toDateStr, toMonthStr } from "@/lib/date";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -19,7 +20,7 @@ export function formatCurrency(value?: number | string | null) {
 }
 
 export function getCitiesForToday(date: Date, overrides: RouteOverride[]): string[] {
-    const dateStr = date.toISOString().slice(0, 10);
+    const dateStr = toDateStr(date);
 
     const override = overrides.find(o => o.date === dateStr);
     if (override) return override.cities;
@@ -55,7 +56,7 @@ export function monthsBetween(fromKey: string, toKey: string): { key: string; da
     let y = fy, m = fm;
     while (y < ty || (y === ty && m <= tm)) {
         const d = new Date(y, m - 1, 1);
-        result.push({ key: d.toISOString().slice(0, 7), date: d });
+        result.push({ key: toMonthStr(d), date: d });
         m++;
         if (m > 12) { m = 1; y++; }
     }

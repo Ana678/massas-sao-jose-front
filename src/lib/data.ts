@@ -1,4 +1,5 @@
 import { type Expense, type Order, type RouteOverride } from "./types";
+import { toDateStr } from "@/lib/date";
 
 
 export type DayOfWeek = 'segunda' | 'quarta' | 'quinta' | 'sexta' | 'sabado';
@@ -90,7 +91,7 @@ export function saveRouteOverrides(r: RouteOverride[]) { save(STORAGE_KEYS.route
 export function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 export function getTodayRoute(): string[] {
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = toDateStr();
     const overrides = getRouteOverrides();
     const override = overrides.find((o) => o.date === todayStr);
     if (override) return override.cities;

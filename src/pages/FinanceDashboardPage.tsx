@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toMonthStr } from "@/lib/date";
 import { Download } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
@@ -32,11 +33,11 @@ const PRESETS: { value: PresetPeriod; label: string }[] = [
 
 export default function FinanceDashboardPage() {
     const [period, setPeriod] = useState<PresetPeriod>(6);
-    const todayKey = new Date().toISOString().slice(0, 7);
+    const todayKey = toMonthStr();
     const defaultFrom = (() => {
         const d = new Date();
         d.setMonth(d.getMonth() - 5);
-        return d.toISOString().slice(0, 7);
+        return toMonthStr(d);
     })();
     const [customFrom, setCustomFrom] = useState<string>(defaultFrom);
     const [customTo, setCustomTo] = useState<string>(todayKey);
@@ -51,8 +52,8 @@ export default function FinanceDashboardPage() {
         const endD = new Date();
         const startD = new Date(endD.getFullYear(), endD.getMonth() - period + 1, 1);
         return {
-            startDate: startD.toISOString().slice(0, 7),
-            endDate: endD.toISOString().slice(0, 7)
+            startDate: toMonthStr(startD),
+            endDate: toMonthStr(endD)
         };
     }, [period, customFrom, customTo]);
 

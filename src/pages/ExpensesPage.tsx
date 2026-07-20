@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toDateStr, toMonthStr } from "@/lib/date";
 import { Plus, Check, Trash2, Filter, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
@@ -17,6 +18,8 @@ import SelectField from "@/components/form/SelectField";
 import Section from "@/components/layout/Section";
 import LoadingState from "@/components/layout/LoadingState";
 import EmptyState from "@/components/layout/EmptyState";
+
+const defaultDateFrom = () => `${toMonthStr()}-01`;
 
 interface FormState {
     description: string;
@@ -39,8 +42,8 @@ export default function DespesasPage() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [catFilter, setCatFilter] = useState<CatFilter>("todas");
-    const [dateFrom, setDateFrom] = useState<string>(new Date().toISOString().slice(0, 7) + "-01");
-    const [dateTo, setDateTo] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [dateFrom, setDateFrom] = useState<string>(defaultDateFrom());
+    const [dateTo, setDateTo] = useState<string>(toDateStr());
     const filterCategoryOptions = [
         { value: "todas", label: "Todas as categorias" },
         ...Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({ value: key, label })),
@@ -79,8 +82,8 @@ export default function DespesasPage() {
 
     function resetFilters() {
         setCatFilter("todas");
-        setDateFrom(new Date().toISOString().slice(0, 7) + "-01");
-        setDateTo(new Date().toISOString().slice(0, 10));
+        setDateFrom(defaultDateFrom());
+        setDateTo(toDateStr());
     }
 
     const filtered = useMemo(() => {
@@ -95,8 +98,8 @@ export default function DespesasPage() {
     }, [expenses, catFilter, dateFrom, dateTo]);
 
     const total = filtered.reduce((s, e) => s + e.value, 0);
-    const isFiltered = catFilter !== "todas" || dateFrom !== new Date().toISOString().slice(0, 7) + "-01"
-        || dateTo !== new Date().toISOString().slice(0, 10);
+    const isFiltered = catFilter !== "todas" || dateFrom !== defaultDateFrom()
+        || dateTo !== toDateStr();
 
     return (
         <div className="pb-24">

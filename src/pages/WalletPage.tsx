@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { toDateStr, toMonthStr } from "@/lib/date";
 import { TrendingUp, TrendingDown, ArrowRight, FileDown, AlertCircle, Wallet, CalendarDays, History, Cookie } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { exportMonthlyClosingPDF } from "@/lib/make-pdf";
@@ -10,8 +11,8 @@ import StatCard from "@/components/ui/StatCard";
 import DualStatCard from "@/components/ui/DualStatCard";
 
 export default function CaixaPage() {
-    const today = new Date().toISOString().slice(0, 10);
-    const thisMonth = new Date().toISOString().slice(0, 7);
+    const today = toDateStr();
+    const thisMonth = toMonthStr();
     const lastDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
 
     const monthStart = `${thisMonth}-01`;
@@ -91,9 +92,9 @@ export default function CaixaPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-normal">Vendas de hoje</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">{summary?.todayOrdersCount} pedidos concluídos</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">{summary?.todayOrdersCount || 0} pedidos concluídos</p>
                     </div>
-                    <p className="text-primary text-xl tracking-tight font-normal whitespace-nowrap">{formatCurrency(summary?.todayRevenue)}</p>
+                    <p className="text-primary text-xl tracking-tight font-normal whitespace-nowrap">{formatCurrency(summary?.todayRevenue || 0)}</p>
                 </div>
             </section>
 
