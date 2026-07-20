@@ -47,7 +47,10 @@
         --secondary-foreground: 40 10% 10%;
 
         --muted: 34 25% 87%;
-        --muted-foreground: 36 18% 62%;
+        /* 62% dava contraste 2.18:1 sobre o --background — ilegível.
+           40% passa em 4.58:1 (WCAG AA), que é o mínimo pro texto pequeno
+           (text-xs / text-[10px]) onde essa cor mais aparece. */
+        --muted-foreground: 36 18% 40%;
 
         --accent: 213 55% 17%;
         --accent-foreground: 36 33% 93%;
