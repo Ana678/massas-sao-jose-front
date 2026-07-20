@@ -25,7 +25,14 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Um 401 vindo do próprio login/refresh é credencial errada, não sessão
+        // expirada — tentar renovar aqui limpa o localStorage, dispara o toast de
+        // "sessão expirou" e ainda troca o erro original pelo erro do refresh.
+        const isAuthRoute = ['/auth/login', '/auth/refresh'].some((route) =>
+            originalRequest?.url?.includes(route),
+        );
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => failedQueue.push({ resolve, reject }))
                 .then(token => {

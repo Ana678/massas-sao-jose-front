@@ -43,8 +43,12 @@ const LoginPage = () => {
 
             if (err.response?.status === 401) {
                 toast.error('Usuário ou senha incorretos.');
+            } else if (!err.response) {
+                // Sem response = a requisição não chegou a ter resposta lida
+                // (servidor fora do ar, URL errada ou CORS bloqueando).
+                toast.error('Não foi possível falar com o servidor. Verifique sua conexão.');
             } else {
-                toast.error('Erro ao conectar com o servidor. Tente novamente.');
+                toast.error(`Erro no servidor (${err.response.status}). Tente novamente.`);
             }
         } finally {
             setLoading(false);

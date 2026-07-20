@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+
 interface InputWithIconProps {
   icon: React.ComponentType<{ className?: string }>;
   value: string;
@@ -25,6 +28,9 @@ export default function InputWithIcon({
   label,
   className = ""
 }: InputWithIconProps) {
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <div className={className}>
       {label && (
@@ -37,16 +43,32 @@ export default function InputWithIcon({
           <Icon className="h-[18px] w-[18px] text-muted-foreground" />
         </div>
         <input
-          type={type}
+          type={isPassword && revealed ? "text" : type}
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           maxLength={maxLength}
           inputMode={inputMode}
           className={`block w-full rounded-xl border bg-card p-4 pl-11 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:bg-card/50 ${
-            error ? "border-destructive" : "border-border"
-          }`}
+            isPassword ? "pr-11" : ""
+          } ${error ? "border-destructive" : "border-border"}`}
         />
+        {isPassword && (
+          <button
+            // type="button" para não submeter o form ao clicar
+            type="button"
+            onClick={() => setRevealed((prev) => !prev)}
+            aria-label={revealed ? "Ocultar senha" : "Mostrar senha"}
+            aria-pressed={revealed}
+            className="absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {revealed ? (
+              <EyeOff className="h-[18px] w-[18px]" />
+            ) : (
+              <Eye className="h-[18px] w-[18px]" />
+            )}
+          </button>
+        )}
       </div>
       {error && <p className="text-destructive text-xs mt-1">{error}</p>}
     </div>
