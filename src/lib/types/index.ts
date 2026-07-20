@@ -1,3 +1,5 @@
+import type { DiscountType } from "@/lib/discount";
+
 export interface Product {
     id: string;
     name: string;
@@ -51,6 +53,7 @@ export interface Order {
         quantity: number;
         subtotal: number;
         discount: number;
+        discountType?: DiscountType;
     }[];
 }
 

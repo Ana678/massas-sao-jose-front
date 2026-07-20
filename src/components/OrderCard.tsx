@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { formatDiscount } from "@/lib/discount";
 import { formatCurrency } from "@/lib/utils";
 import { type Order } from "@/lib/types";
 import { MapPin } from "lucide-react";
@@ -61,7 +62,7 @@ export default function OrderCard({ order, city }: OrderCardProps) {
                             <span>{i.quantity} x {i.name}</span>
                             {i.discount !== undefined && i.discount > 0 && (
                                 <span className="text-primary bg-primary/10 border border-primary/20 px-0.5 rounded text-[10px]">
-                                    -{i.discount}%
+                                    {formatDiscount(i.discount, i.discountType)}
                                 </span>
                             )}
                         </p>

@@ -2,11 +2,24 @@ import { useState } from "react";
 import { Minus, Plus, Percent, X, Trash2 } from "lucide-react";
 import { type Product } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+import {
+  buildDiscount,
+  formatDiscount,
+  DEFAULT_DISCOUNT_TYPE,
+  type DiscountType,
+} from "@/lib/discount";
 
 export interface LineItem {
   productId: string;
   qty: number;
   unitPrice: number;
+  /**
+   * Preço congelado do item no pedido. Só a edição de pedido preenche isso —
+   * nas telas de criação fica undefined e cai no preço atual do catálogo.
+   */
+  originalPrice?: number;
+  /** Unidade em que o desconto deste item será gravado. */
+  discountType?: DiscountType;
 }
 
 interface Props {
@@ -14,6 +27,7 @@ interface Props {
   products: Product[];
   onAdjustQty: (productId: string, delta: number) => void;
   onSetUnitPrice: (productId: string, unitPrice: number) => void;
+  onSetDiscountType?: (productId: string, discountType: DiscountType) => void;
   onRemove?: (productId: string) => void;
 }
 
@@ -22,6 +36,7 @@ export default function LineItemsList({
   products,
   onAdjustQty,
   onSetUnitPrice,
+  onSetDiscountType,
   onRemove,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -57,13 +72,16 @@ export default function LineItemsList({
 
         const displayQty = isEditingQty ? (parseInt(qtyInputValue, 10) || 0) : committedQty;
 
-        const original = p.price || (p as any).sellPrice || 0;
+        const original = Number(it?.originalPrice ?? p.price ?? 0);
 
         const unitPrice = it ? it.unitPrice : original;
 
         const hasDiscount = unitPrice < original - 0.001;
-        const discountPct = original > 0 ? Math.round((1 - unitPrice / original) * 100) : 0;
         const subtotal = unitPrice * displayQty;
+
+        // O desconto é sempre derivado do preço final; o tipo só decide a unidade.
+        const discountType = it?.discountType ?? DEFAULT_DISCOUNT_TYPE;
+        const { discount } = buildDiscount(original, unitPrice, discountType);
 
         const open = openId === p.id && displayQty > 0;
 
@@ -83,7 +101,7 @@ export default function LineItemsList({
                         {formatCurrency(original)}
                       </span>
                       <span className="bg-primary/10 px-1.5 py-0.5 rounded-lg font-medium text-[11px] text-primary">
-                        {formatCurrency(unitPrice)} (-{discountPct}%)
+                        {formatCurrency(unitPrice)} ({formatDiscount(discount, discountType)})
                       </span>
                     </>
                   ) : (
@@ -169,37 +187,72 @@ export default function LineItemsList({
 
             {open && (
               <div className="bg-background/50 px-4 py-3 border-t border-border animate-slide-up">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
-                      Desconto %
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={hasDiscount ? discountPct : ""}
-                      placeholder="0"
-                      onChange={(e) => {
-                        const pct = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                        onSetUnitPrice(p.id, +(original * (1 - pct / 100)).toFixed(2));
-                      }}
-                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
+                {onSetDiscountType && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      Desconto em
+                    </span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {(["PERCENT", "VALUE"] as DiscountType[]).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => onSetDiscountType(p.id, type)}
+                          aria-pressed={discountType === type}
+                          className={`px-3 py-1 text-[11px] transition-colors ${
+                            discountType === type
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-card text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {type === "PERCENT" ? "%" : "R$"}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
-                      Preço R$
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={unitPrice}
-                      onChange={(e) => onSetUnitPrice(p.id, Math.max(0, Number(e.target.value) || 0))}
-                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
-                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1.5">
+                    {discountType === "PERCENT" ? "Desconto %" : "Desconto R$"}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    // A API rejeita desconto negativo, PERCENT > 100 ou VALUE
+                    // maior que o preço unitário.
+                    max={discountType === "PERCENT" ? 100 : original}
+                    step={0.01}
+                    value={hasDiscount ? discount : ""}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const raw = Math.max(0, Number(e.target.value) || 0);
+
+                      // Converte o desconto digitado (na unidade escolhida) para o
+                      // preço final, que é o que o estado das telas guarda.
+                      const off =
+                        discountType === "PERCENT"
+                          ? (original * Math.min(100, raw)) / 100
+                          : Math.min(original, raw);
+
+                      onSetUnitPrice(p.id, +(original - off).toFixed(2));
+                    }}
+                    className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {hasDiscount ? (
+                      <>
+                        Sai por{" "}
+                        <span className="text-primary font-medium">
+                          {formatCurrency(unitPrice)}
+                        </span>{" "}
+                        cada <span className="line-through">{formatCurrency(original)}</span>
+                      </>
+                    ) : (
+                      <>Sem desconto — {formatCurrency(original)} cada</>
+                    )}
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-border/50">

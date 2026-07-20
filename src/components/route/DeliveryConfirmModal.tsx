@@ -4,12 +4,14 @@ import { toast } from "sonner";
 import PaymentSelector from "@/components/PaymentSelector";
 import { useConfirmDelivery } from "@/lib/hooks/useOrders";
 import { type Client, type Product } from "@/lib/types";
+import { buildDiscount, DEFAULT_DISCOUNT_TYPE, type DiscountType } from "@/lib/discount";
 
 interface DeliveryConfirmModalProps {
     client: Client;
     products: Product[];
     quantities: Record<string, number>;
     prices: Record<string, number>;
+    discountTypes?: Record<string, DiscountType>;
     onClose: () => void;
 }
 
@@ -18,6 +20,7 @@ export function DeliveryConfirmModal({
     products,
     quantities,
     prices,
+    discountTypes = {},
     onClose
 }: DeliveryConfirmModalProps) {
     const [deliveryPaid, setDeliveryPaid] = useState(true);
@@ -33,12 +36,17 @@ export function DeliveryConfirmModal({
                 const originalPrice = product?.price || 0;
                 const customPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
 
-                const discountValue = parseFloat((originalPrice - customPrice).toFixed(2));
+                const { discount, discountType } = buildDiscount(
+                    originalPrice,
+                    customPrice,
+                    discountTypes[pid] ?? DEFAULT_DISCOUNT_TYPE,
+                );
 
                 return {
                     productId: pid,
                     quantity: q,
-                    discount: discountValue
+                    discount,
+                    discountType
                 };
             });
 

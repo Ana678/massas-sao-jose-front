@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { type Client, type Order } from "@/lib/types";
+import { netUnitPrice, type DiscountType } from "@/lib/discount";
 
 export function useRouteManager(
     allClients: Client[],
@@ -10,6 +11,7 @@ export function useRouteManager(
 ) {
     const [quantities, setQuantities] = useState<Record<string, Record<string, number>>>({});
     const [prices, setPrices] = useState<Record<string, Record<string, number>>>({}); // <-- Novo estado para descontos
+    const [discountTypes, setDiscountTypes] = useState<Record<string, Record<string, DiscountType>>>({});
 
     const routeClients = useMemo(() =>
         allClients.filter((c) => todayCities.includes(c.city)),
@@ -43,6 +45,7 @@ export function useRouteManager(
     const initializeQuantities = () => {
         const initialQty: Record<string, Record<string, number>> = {};
         const initialPrices: Record<string, Record<string, number>> = {};
+        const initialTypes: Record<string, Record<string, DiscountType>> = {};
 
         routeClients.forEach((client) => {
             const lastOrder = orders
@@ -52,6 +55,7 @@ export function useRouteManager(
             if (lastOrder) {
                 const clientQuantities: Record<string, number> = {};
                 const clientPrices: Record<string, number> = {};
+                const clientTypes: Record<string, DiscountType> = {};
 
                 lastOrder.products.forEach((product: any) => {
                     // Algumas APIs retornam id, outras productId. Garanta que pega o correto:
@@ -60,27 +64,29 @@ export function useRouteManager(
                     // 1. Restaura a quantidade
                     clientQuantities[pid] = Number(product.quantity);
 
-                    // 2. Transforma o desconto (%) de volta em valor em Reais (R$)
-                    if (product.discount && product.discount > 0) {
-                        // Calcula o valor descontado
-                        const discountAmount = Number(product.price) * (Number(product.discount) / 100);
-                        const finalPrice = Number(product.price) - discountAmount;
+                    // 2. Reconstroi o preço final praticado na venda anterior.
+                    //    Pedidos antigos vêm como PERCENT, os novos como VALUE.
+                    const finalPrice = netUnitPrice(
+                        Number(product.price),
+                        product.discount,
+                        product.discountType,
+                    );
 
-                        // Salva com 2 casas decimais (ex: 15.00)
-                        clientPrices[pid] = Number(finalPrice.toFixed(2));
-                    } else {
-                        // Se não teve desconto na venda anterior, mantém o preço base
-                        clientPrices[pid] = Number(product.price);
-                    }
+                    clientPrices[pid] = Number(finalPrice.toFixed(2));
+
+                    // Pedido antigo não tem o campo: só existia PERCENT na época.
+                    clientTypes[pid] = product.discountType ?? "PERCENT";
                 });
 
                 initialQty[client.id] = clientQuantities;
                 initialPrices[client.id] = clientPrices;
+                initialTypes[client.id] = clientTypes;
             }
         });
 
         setQuantities(initialQty);
         setPrices(initialPrices);
+        setDiscountTypes(initialTypes);
     };
 
     function adjustQty(clientId: string, productId: string, delta: number) {
@@ -110,6 +116,14 @@ export function useRouteManager(
         });
     }
 
+    function setDiscountType(clientId: string, productId: string, discountType: DiscountType) {
+        setDiscountTypes((prev) => {
+            const clientTypes = { ...(prev[clientId] || {}) };
+            clientTypes[productId] = discountType;
+            return { ...prev, [clientId]: clientTypes };
+        });
+    }
+
     function removeItem(clientId: string, productId: string) {
         setQuantities((prev) => {
             const clientQty = { ...(prev[clientId] || {}) };
@@ -133,8 +147,10 @@ export function useRouteManager(
         unpaidRevenue,
         quantities,
         prices,
+        discountTypes,
         adjustQty,
         setUnitPrice,
+        setDiscountType,
         removeItem,
         initializeQuantities
     };

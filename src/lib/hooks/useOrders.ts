@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { toast } from "sonner";
+import type { DiscountType } from "../discount";
 
 interface CreateOrderInput {
 	clientId: string;
@@ -12,6 +13,7 @@ interface CreateOrderInput {
 		productId: string;
 		quantity: number;
         discount?: number;
+        discountType?: DiscountType;
 	}[];
 }
 
@@ -25,6 +27,7 @@ interface UpdateOrderInput {
 		productId: string;
 		quantity: number;
         discount?: number;
+        discountType?: DiscountType;
 	}[];
 }
 
@@ -47,6 +50,7 @@ export interface OrderResponse {
 		quantity: number;
 		subtotal: number;
         discount: number;
+        discountType?: DiscountType;
 	}[];
 }
 
@@ -75,6 +79,7 @@ interface ConfirmDeliveryInput {
 		productId: string;
 		quantity: number;
 		discount?: number;
+		discountType?: DiscountType;
 	}[];
 }
 
@@ -84,7 +89,7 @@ export interface ProductionEstimateResponse {
 		productId: string;
 		productName: string;
 		firmOrders: number;
-		historicalAverage: number;
+		lastOrderVolume: number;
 		suggestedProduction: number;
 	}[];
 }

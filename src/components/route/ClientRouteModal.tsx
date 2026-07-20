@@ -5,14 +5,17 @@ import PaymentSelector from "@/components/PaymentSelector";
 import { type Client } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import Checkbox from "../ui/Checkbox";
+import { DEFAULT_DISCOUNT_TYPE, type DiscountType } from "@/lib/discount";
 
 interface ClientRouteModalProps {
     client: Client;
     products: any[];
     quantities: Record<string, number>;
     prices: Record<string, number>;
+    discountTypes?: Record<string, DiscountType>;
     onAdjustQty: (productId: string, delta: number) => void;
     onSetUnitPrice: (productId: string, price: number) => void;
+    onSetDiscountType?: (productId: string, discountType: DiscountType) => void;
     onRemove: (productId: string) => void;
     onClose: () => void;
     onSave?: (deliveryData?: { status: string, isPaid: boolean, paymentMethod: string }) => void;
@@ -24,8 +27,10 @@ export function ClientRouteModal({
     products,
     quantities,
     prices,
+    discountTypes = {},
     onAdjustQty,
     onSetUnitPrice,
+    onSetDiscountType,
     onRemove,
     onClose,
     onSave,
@@ -39,8 +44,13 @@ export function ClientRouteModal({
         .filter(([, q]) => q > 0)
         .map(([pid, q]) => {
             const p = products.find(x => x.id === pid);
-            const unitPrice = prices[pid] !== undefined ? prices[pid] : (p?.price || 0);
-            return { productId: pid, qty: q, unitPrice };
+            const unitPrice = prices[pid] !== undefined ? prices[pid] : Number(p?.price || 0);
+            return {
+                productId: pid,
+                qty: q,
+                unitPrice,
+                discountType: discountTypes[pid] ?? DEFAULT_DISCOUNT_TYPE,
+            };
         });
 
     const subtotal = items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
@@ -125,6 +135,7 @@ export function ClientRouteModal({
                             products={products}
                             onAdjustQty={(pid, delta) => onAdjustQty(pid, delta)}
                             onSetUnitPrice={(pid, price) => onSetUnitPrice(pid, price)}
+                            onSetDiscountType={onSetDiscountType}
                             onRemove={(pid) => onRemove(pid)}
                         />
                     </div>
