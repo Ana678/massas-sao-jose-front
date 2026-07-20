@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useOrdersList } from "@/lib/hooks/useOrders";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -49,6 +49,11 @@ export default function OrdersPage() {
     const orders = ordersData?.data || [];
 	const totalOrders = ordersData?.total || 0;
 	const totalPages = Math.ceil(totalOrders / limit);
+
+	// A última página quase nunca está cheia, então a faixa tem que sair do
+	// offset da página + o que veio, não de orders.length * page.
+	const firstShown = (page - 1) * limit + 1;
+	const lastShown = (page - 1) * limit + orders.length;
 
 	const advancedFiltersCount = [
 		startDate,
@@ -178,9 +183,9 @@ export default function OrdersPage() {
 			</section>
 
 			<section className="px-6 pb-6 space-y-2">
-                {totalOrders > 0 && (
+                {orders.length > 0 && (
                     <p className="text-xs font-normal text-muted-foreground">
-                        Mostrando {orders.length * (ordersData?.page || 1)} de {totalOrders} pedidos
+                        Mostrando {firstShown}–{lastShown} de {totalOrders} pedidos
                     </p>
                 )}
 
