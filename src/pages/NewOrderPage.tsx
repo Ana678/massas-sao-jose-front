@@ -1,7 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
+import { toDateStr } from "@/lib/date";
 import { Check, Calendar, Sparkles } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import LineItemsList from "@/components/LineItemsList";
+import { buildDiscount, DEFAULT_DISCOUNT_TYPE, type DiscountType } from "@/lib/discount";
 import PaymentSelector from "@/components/PaymentSelector";
 import SectionLabel from "@/components/form/SectionLabel";
 import LoadingState from "@/components/layout/LoadingState";
@@ -63,6 +65,7 @@ export default function NewOrderPage() {
 
 	const [cart, setCart] = useState<Record<string, number>>({});
 	const [prices, setPrices] = useState<Record<string, number>>({});
+	const [discountTypes, setDiscountTypes] = useState<Record<string, DiscountType>>({});
 
 	const [payment, setPayment] = useState<"pix" | "cartao" | "dinheiro">(
 		"dinheiro",
@@ -91,6 +94,10 @@ export default function NewOrderPage() {
 		setPrices((prev) => ({ ...prev, [productId]: price }));
 	}
 
+	function setDiscountType(productId: string, discountType: DiscountType) {
+		setDiscountTypes((prev) => ({ ...prev, [productId]: discountType }));
+	}
+
 	function removeItem(productId: string) {
 		setCart((prev) => {
 			const next = { ...prev };
@@ -113,10 +120,11 @@ export default function NewOrderPage() {
 					const originalPrice = product?.price || 0;
 					const customPrice = prices[productId] !== undefined ? prices[productId] : originalPrice;
 
-					let discountPercentage = 0;
-					if (customPrice !== undefined && customPrice < originalPrice && originalPrice > 0) {
-						discountPercentage = Number((((originalPrice - customPrice) / originalPrice) * 100).toFixed(2));
-					}
+					const { discount, discountType } = buildDiscount(
+						originalPrice,
+						customPrice,
+						discountTypes[productId] ?? DEFAULT_DISCOUNT_TYPE,
+					);
 
 					return {
 						productId,
@@ -124,10 +132,11 @@ export default function NewOrderPage() {
 						qty,
 						unitPrice: originalPrice,
 						customPrice,
-						discount: discountPercentage,
+						discount,
+						discountType,
 					};
 				}),
-		[cart, prices, apiProducts],
+		[cart, prices, discountTypes, apiProducts],
 	);
 
 	const itemsForList = useMemo(
@@ -138,24 +147,31 @@ export default function NewOrderPage() {
 					const p = apiProducts.find((x) => x.id === pid);
 					const originalPrice = p?.price ?? 0;
 					const unitPrice = prices[pid] !== undefined ? prices[pid] : originalPrice;
-					return { productId: pid, qty, unitPrice };
+					return {
+						productId: pid,
+						qty,
+						unitPrice,
+						discountType: discountTypes[pid] ?? DEFAULT_DISCOUNT_TYPE,
+					};
 				}),
-		[cart, prices, apiProducts],
+		[cart, prices, discountTypes, apiProducts],
 	);
 
 	const total = useMemo(() => itemsForList.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), [itemsForList]);
 	const originalTotal = useMemo(() => productsList.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), [productsList]);
 	const totalItems = useMemo(() => itemsForList.reduce((sum, item) => sum + item.qty, 0), [itemsForList]);
 
+	const isOrderReady = Boolean(selectedClientId) && productsList.length > 0;
+
 	const orderType: OrderType = dayParam ? "PREVISAO_ROTA" : "ENCOMENDA";
 
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
-	let targetDate = today.toISOString().split("T")[0];
+	let targetDate = toDateStr(today);
 
 	if (deliveryType === "agendado" && selectedClientData?.city) {
 		const nextDelivery = getNextDeliveryDate(selectedClientData.city, today);
-		targetDate = nextDelivery.toISOString().split("T")[0];
+		targetDate = toDateStr(nextDelivery);
 	}
 
 	const sortedProducts = useMemo(
@@ -172,18 +188,23 @@ export default function NewOrderPage() {
 	function submit() {
 		if (!selectedClientId || productsList.length === 0) return;
 
+		const isPaidNow = deliveryType === "hoje" && isPaid;
+
 		const payload = {
 			clientId: selectedClientId,
 			type: orderType,
-			paymentMethod: payment,
+			// Mesma regra do DeliveryConfirmModal: sem pagamento não há forma de
+			// pagamento a registrar, então vai o default da API.
+			paymentMethod: isPaidNow ? payment : "dinheiro",
 			deliveryFee: 0,
-			isPaid: deliveryType === "hoje" ? isPaid : false,
+			isPaid: isPaidNow,
 			status: deliveryType === "hoje" ? "ENTREGUE" : "PENDENTE",
 			targetDate: deliveryType === "hoje" ? undefined : targetDate,
 			products: productsList.map((item) => ({
 				productId: item.productId,
 				quantity: item.qty,
 				discount: item.discount,
+				discountType: item.discountType,
 			})),
 		};
 
@@ -194,6 +215,13 @@ export default function NewOrderPage() {
 		});
 	}
 
+	useEffect(() => {
+		if (selectedClientId) {
+			const client = clients?.find((c) => c.id === selectedClientId) || null;
+			setSelectedClientData(client);
+		}
+	}, [selectedClientId, clients]);
+
 	if (loadingClients || loadingProducts) {
 		return (
 			<LoadingState
@@ -202,13 +230,6 @@ export default function NewOrderPage() {
 			/>
 		);
 	}
-
-	useEffect(() => {
-		if (selectedClientId) {
-			const client = clients?.find((c) => c.id === selectedClientId) || null;
-			setSelectedClientData(client);
-		}
-	}, [selectedClientId, clients]);
 
 	return (
 		<div className="flex flex-col h-full min-h-screen pb-20">
@@ -247,17 +268,6 @@ export default function NewOrderPage() {
 					)}
 			</section>
 
-			<section className="px-4 pb-6 flex flex-col gap-2">
-				<SectionLabel className="mt-4">Selecione os Itens</SectionLabel>
-				<LineItemsList
-					items={itemsForList}
-					products={sortedProducts}
-					onAdjustQty={adjustQty}
-					onSetUnitPrice={setUnitPrice}
-					onRemove={removeItem}
-				/>
-			</section>
-
 			<section className="px-4 pb-3 flex flex-col gap-2">
 				<SectionLabel className="mt-6">Tipo de Entrega</SectionLabel>
 				<div className="flex gap-2">
@@ -290,38 +300,61 @@ export default function NewOrderPage() {
 						<span className="font-medium">{selectedClientData.city}</span> será
 						em{" "}
 						<span className="font-medium">
-							{new Date(targetDate).toLocaleDateString("pt-BR")}
+							{new Date(`${targetDate}T00:00:00`).toLocaleDateString("pt-BR")}
 						</span>
 					</div>
 				)}
 				{deliveryType === "hoje" && (
 					<>
-						<SectionLabel className="mt-4">Forma de Pagamento</SectionLabel>
-						<PaymentSelector value={payment} onChange={setPayment} />
+						<SectionLabel className="mt-4">Pagamento</SectionLabel>
 
-						<div className="flex items-center justify-between mt-2 bg-card border border-border rounded-xl px-4 py-3">
-							<span className="text-sm text-foreground">
-								Pagamento recebido na hora?
-							</span>
+						<div className="grid grid-cols-2 gap-2">
 							<button
-								onClick={() => setIsPaid(!isPaid)}
-								className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-									isPaid ? "bg-primary" : "bg-muted"
-								}`}
+								onClick={() => setIsPaid(true)}
+								className={`rounded-xl border py-3 text-xs transition-colors font-normal ${isPaid ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"}`}
 							>
-								<span
-									className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-										isPaid ? "translate-x-6" : "translate-x-1"
-									}`}
-								/>
+								Já pagou
+							</button>
+							<button
+								onClick={() => setIsPaid(false)}
+								className={`rounded-xl border py-3 text-xs transition-colors font-normal ${!isPaid ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border"}`}
+							>
+								Ficou pendente
 							</button>
 						</div>
+
+						{isPaid && (
+							<section className="flex flex-col gap-2">
+								<label className="text-muted-foreground text-xs uppercase tracking-widest mt-2">
+									Forma de Pagamento
+								</label>
+								<PaymentSelector value={payment} onChange={setPayment} />
+							</section>
+						)}
 					</>
 				)}
 			</section>
-			{productsList.length > 0 && selectedClientId && (
-				<div className="fixed bottom-0 w-full max-w-md z-40">
-					<div className="bg-card p-4 border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+
+			<section className="px-4 pb-6 flex flex-col gap-2">
+				<SectionLabel className="mt-4">Selecione os Itens</SectionLabel>
+				<LineItemsList
+					items={itemsForList}
+					products={sortedProducts}
+					onAdjustQty={adjustQty}
+					onSetUnitPrice={setUnitPrice}
+					onSetDiscountType={setDiscountType}
+					onRemove={removeItem}
+				/>
+			</section>
+			<div className="fixed bottom-0 w-full max-w-md z-40">
+				<div className="bg-card p-4 border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
+					{!isOrderReady ? (
+						<p className="text-muted-foreground text-sm text-center mb-3">
+							{!selectedClientId
+								? "Adicione um cliente para começar"
+								: "Adicione os itens para começar"}
+						</p>
+					) : (
 						<div className="flex items-center justify-between mb-3">
 							<div>
 								<p className="text-muted-foreground text-xs">
@@ -354,23 +387,23 @@ export default function NewOrderPage() {
 								)}
 							</div>
 						</div>
-						<button
-							onClick={submit}
-							disabled={!selectedClientId || productsList.length === 0 || isSaving}
-							className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 flex items-center justify-center gap-2 font-normal disabled:opacity-40 transition-transform active:scale-[0.98]"
-						>
-							{isSaving ? (
-								"Salvando..."
-							) : (
-								<>
-									<Check className="w-5 h-5" />
-									Confirmar Pedido
-								</>
-							)}
-						</button>
-					</div>
+					)}
+					<button
+						onClick={submit}
+						disabled={!isOrderReady || isSaving}
+						className="w-full bg-primary text-primary-foreground rounded-xl p-3.5 flex items-center justify-center gap-2 font-normal disabled:opacity-40 transition-transform active:scale-[0.98]"
+					>
+						{isSaving ? (
+							"Salvando..."
+						) : (
+							<>
+								<Check className="w-5 h-5" />
+								Confirmar Pedido
+							</>
+						)}
+					</button>
 				</div>
-			)}
+			</div>
 		</div>
 	);
 }
