@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { toDateStr, toMonthStr } from "@/lib/date";
+import { isInMonth, toDateStr, toMonthStr } from "@/lib/date";
 import { TrendingUp, TrendingDown, ArrowRight, FileDown, AlertCircle, Wallet, CalendarDays, History, Cookie } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { exportMonthlyClosingPDF } from "@/lib/make-pdf";
@@ -21,7 +21,7 @@ export default function CaixaPage() {
     const { data: summary } = useDashboardSummary(monthStart, monthEnd, today);
     const { data: expenses = [] } = useExpensesList();
 
-    const monthExpenses = expenses.filter((e) => e.createdAt.startsWith(thisMonth));
+    const monthExpenses = expenses.filter((e) => isInMonth(e.createdAt, thisMonth));
     const costs = monthExpenses.reduce((s, e) => s + Number(e.value), 0);
 
     const revenue = summary?.monthRevenue || 0;

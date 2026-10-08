@@ -9,11 +9,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value?: number | string | null) {
+    if (isHidingValues() && value !== undefined && value !== null && !isNaN(Number(value))) {
+        return HIDDEN_VALUE;
+    }
+    return formatCurrencyRaw(value);
+}
+
+/** Igual a formatCurrency, mas ignora o modo "esconder valores" (usado nos PDFs exportados). */
+export function formatCurrencyRaw(value?: number | string | null) {
     const num = Number(value);
     if (value === undefined || value === null || isNaN(num)) {
         return "R$ Error";
     }
-    if (isHidingValues()) return HIDDEN_VALUE;
 
     return num.toLocaleString("pt-BR", {
         style: "currency",

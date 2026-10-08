@@ -15,3 +15,12 @@ export function toDateStr(date: Date = new Date()) {
 export function toMonthStr(date: Date = new Date()) {
 	return toDateStr(date).slice(0, 7);
 }
+
+/**
+ * `true` se o instante (ISO da API, em UTC) cai no mês `YYYY-MM` local.
+ * Não usar `iso.startsWith(mes)`: às 22h do dia 30/09 a API devolve
+ * "2026-10-01T01:00Z", e a despesa iria para o mês errado.
+ */
+export function isInMonth(iso: string | Date, monthKey: string) {
+	return toMonthStr(new Date(iso)) === monthKey;
+}

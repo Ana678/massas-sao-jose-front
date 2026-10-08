@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toDateStr } from "@/lib/date";
 import { maskMoney, parseMoney } from "@/lib/masks";
+import { daysAgo, filterExpenses, periodRange, sumExpenses, type Period } from "@/lib/expenseFilters";
 import { Plus, Check, Trash2, Filter, X, Pencil } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
@@ -35,48 +36,12 @@ interface FormState {
 const emptyForm = (): FormState => ({ description: "", value: "", category: "insumos", date: toDateStr() });
 
 type CatFilter = "todas" | string;
-type Period = "todas" | "semana" | "mes" | "personalizado";
-
 const PERIOD_TABS = [
     { key: "todas", label: "Todas" },
     { key: "semana", label: "Última semana" },
     { key: "mes", label: "Último mês" },
     { key: "personalizado", label: "Período" },
 ];
-
-/** Hoje menos `days` dias, como YYYY-MM-DD local. */
-function daysAgo(days: number) {
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    return toDateStr(d);
-}
-
-/** Semana passada fechada: segunda a domingo da semana anterior. */
-function lastWeekRange(): [string, string] {
-    const today = new Date();
-    const daysSinceMonday = (today.getDay() + 6) % 7; // getDay: 0 = domingo
-    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceMonday - 7);
-    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-    return [toDateStr(monday), toDateStr(sunday)];
-}
-
-/** Mês passado fechado: do dia 1 ao último dia do mês anterior. */
-function lastMonthRange(): [string, string] {
-    const today = new Date();
-    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const last = new Date(today.getFullYear(), today.getMonth(), 0); // dia 0 = último do mês anterior
-    return [toDateStr(first), toDateStr(last)];
-}
-
-/** Intervalo [de, até] em YYYY-MM-DD; string vazia = sem limite. */
-function periodRange(period: Period, customFrom: string, customTo: string): [string, string] {
-    switch (period) {
-        case "semana": return lastWeekRange();
-        case "mes": return lastMonthRange();
-        case "personalizado": return [customFrom, customTo];
-        default: return ["", ""];
-    }
-}
 
 /** Meio-dia local evita que a conversão para UTC jogue a despesa para outro dia. */
 function dateToIso(date: string) {
@@ -178,19 +143,10 @@ export default function DespesasPage() {
 
     const [dateFrom, dateTo] = periodRange(period, customFrom, customTo);
 
-    const filtered = useMemo(() => {
-        const fromIso = dateFrom ? new Date(dateFrom + "T00:00:00").toISOString() : "";
-        const toIso = dateTo ? new Date(dateTo + "T23:59:59.999").toISOString() : "";
-        return expenses
-            .filter((e) => {
-                if (catFilter !== "todas" && e.category !== catFilter) return false;
-                const createdIso = new Date(e.createdAt).toISOString();
-                if (fromIso && createdIso < fromIso) return false;
-                if (toIso && createdIso > toIso) return false;
-                return true;
-            })
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    }, [expenses, catFilter, dateFrom, dateTo]);
+    const filtered = useMemo(
+        () => filterExpenses(expenses, catFilter, dateFrom, dateTo),
+        [expenses, catFilter, dateFrom, dateTo],
+    );
 
     // Qualquer mudança de filtro volta para a primeira página.
     useEffect(() => { setPage(1); }, [catFilter, dateFrom, dateTo]);
@@ -200,7 +156,7 @@ export default function DespesasPage() {
     const currentPage = Math.min(page, totalPages);
     const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-    const total = filtered.reduce((s, e) => s + Number(e.value), 0);
+    const total = sumExpenses(filtered);
     const isFiltered = catFilter !== "todas";
 
     return (

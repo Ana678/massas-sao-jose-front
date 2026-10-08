@@ -1,9 +1,9 @@
 import jsPDF from "jspdf";
 import { netUnitPrice } from "@/lib/discount";
-import { toDateStr } from "@/lib/date";
+import { isInMonth, toDateStr } from "@/lib/date";
 import autoTable from "jspdf-autotable";
 import type { Order, Expense, Client } from "./types";
-import { formatCurrency } from "./utils";
+import { formatCurrencyRaw as formatCurrency } from "./utils";
 import logoUrl from "@/assets/logo.svg";
 
 // Cores da marca (RGB)
@@ -158,7 +158,7 @@ export async function exportMonthlyClosingPDF(
     const monthOrders = orders.filter(
         (o) => o.createdAt.startsWith(monthKey) && o.isPaid
     );
-    const monthExpenses = expenses.filter((e) => e.createdAt.toString().startsWith(monthKey));
+    const monthExpenses = expenses.filter((e) => isInMonth(e.createdAt, monthKey));
     const revenue = monthOrders.reduce((s, o) => s + Number(o.total), 0);
     const costs = monthExpenses.reduce((s, e) => s + Number(e.value), 0);
     const profit = revenue - costs;
