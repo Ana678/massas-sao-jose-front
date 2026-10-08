@@ -18,6 +18,7 @@ import DateRangeInput from "@/components/form/DateRangeInput";
 import SelectField from "@/components/form/SelectField";
 import SegmentedControl from "@/components/form/SegmentedControl";
 import Section from "@/components/layout/Section";
+import Modal from "@/components/layout/Modal";
 import LoadingState from "@/components/layout/LoadingState";
 import EmptyState from "@/components/layout/EmptyState";
 
@@ -96,8 +97,7 @@ export default function DespesasPage() {
         clearErrors();
     }
 
-    function toggleNewForm() {
-        if (showForm && !editing) return closeForm();
+    function openNewForm() {
         clearErrors();
         setEditing(null);
         setForm(emptyForm());
@@ -114,7 +114,6 @@ export default function DespesasPage() {
             date: toDateStr(new Date(e.createdAt)),
         });
         setShowForm(true);
-        window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function submit() {
@@ -206,7 +205,7 @@ export default function DespesasPage() {
                             )}
                         </button>
                         <button
-                            onClick={toggleNewForm}
+                            onClick={openNewForm}
                             className="bg-accent text-accent-foreground p-2 rounded-xl active:scale-95 transition-transform"
                             aria-label="Nova despesa"
                         >
@@ -254,66 +253,62 @@ export default function DespesasPage() {
                 </Section>
             )}
 
-            {showForm && (
-                <Section className="animate-slide-up">
-                    <div className="bg-card rounded-2xl p-4 border border-border space-y-3 shadow-sm">
-                        <div className="flex items-center justify-between">
-                            <p className="text-foreground text-sm font-normal">{editing ? "Editar despesa" : "Nova despesa"}</p>
-                            <button onClick={closeForm} className="text-muted-foreground p-1" aria-label="Fechar">
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
+            <Modal
+                isOpen={showForm}
+                onClose={closeForm}
+                title={editing ? "Editar Despesa" : "Nova Despesa"}
+                footer={
+                    <FormSubmitButton
+                        onClick={submit}
+                        loading={isCreating || isUpdating}
+                        disabled={isCreating || isUpdating}
+                        variant="accent"
+                        icon={Check}
+                    >
+                        {editing ? "Salvar Alterações" : "Lançar Despesa"}
+                    </FormSubmitButton>
+                }
+            >
+                <div className="space-y-3">
+                    <FormField
+                        label="Descrição"
+                        value={form.description}
+                        onChange={(val) => setForm((f) => ({ ...f, description: val as string }))}
+                        error={errors.description}
+                        placeholder="Ex: Farinha de trigo"
+                        required
+                        maxLength={100}
+                    />
 
-                        <FormField
-                            label="Descrição"
-                            value={form.description}
-                            onChange={(val) => setForm((f) => ({ ...f, description: val as string }))}
-                            error={errors.description}
-                            placeholder="Ex: Farinha de trigo"
-                            required
-                            maxLength={100}
-                        />
+                    <FormField
+                        label="Valor (R$)"
+                        value={form.value}
+                        onChange={(val) => setForm((f) => ({ ...f, value: val as string }))}
+                        error={errors.value}
+                        mask={maskMoney}
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        required
+                    />
 
-                        <FormField
-                            label="Valor (R$)"
-                            value={form.value}
-                            onChange={(val) => setForm((f) => ({ ...f, value: val as string }))}
-                            error={errors.value}
-                            mask={maskMoney}
-                            inputMode="numeric"
-                            placeholder="0,00"
-                            required
-                        />
+                    <FormField
+                        label="Data"
+                        value={form.date}
+                        onChange={(val) => setForm((f) => ({ ...f, date: val as string }))}
+                        error={errors.date}
+                        type="date"
+                        required
+                    />
 
-                        <FormField
-                            label="Data"
-                            value={form.date}
-                            onChange={(val) => setForm((f) => ({ ...f, date: val as string }))}
-                            error={errors.date}
-                            type="date"
-                            required
-                        />
-
-                        <SelectField
-                            label="Categoria"
-                            value={form.category}
-                            onChange={(value) => setForm((f) => ({ ...f, category: value }))}
-                            options={formCategoryOptions}
-                            selectClassName="px-4 py-3"
-                        />
-
-                        <FormSubmitButton
-                            onClick={submit}
-                            loading={isCreating || isUpdating}
-                            disabled={isCreating || isUpdating}
-                            variant="accent"
-                            icon={Check}
-                        >
-                            {editing ? "Salvar Alterações" : "Lançar Despesa"}
-                        </FormSubmitButton>
-                    </div>
-                </Section>
-            )}
+                    <SelectField
+                        label="Categoria"
+                        value={form.category}
+                        onChange={(value) => setForm((f) => ({ ...f, category: value }))}
+                        options={formCategoryOptions}
+                        selectClassName="px-4 py-3"
+                    />
+                </div>
+            </Modal>
 
             <Section spacing="lg" className="space-y-2">
                 {isLoading && (
@@ -334,14 +329,14 @@ export default function DespesasPage() {
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                     onClick={() => startEdit(e)}
-                                    className="bg-muted text-foreground p-2 rounded-lg"
+                                    className="bg-blue-600/10 text-blue-700 px-3 py-2 rounded-lg"
                                     aria-label="Editar"
                                 >
                                     <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <button className="bg-destructive/10 text-destructive p-2 rounded-lg shrink-0" aria-label="Excluir">
+                                        <button className="bg-destructive/10 text-destructive px-3 py-2 rounded-lg shrink-0" aria-label="Excluir">
                                             <Trash2 className="w-3.5 h-3.5" />
                                         </button>
                                     </AlertDialogTrigger>
