@@ -39,8 +39,8 @@ type Period = "todas" | "semana" | "mes" | "personalizado";
 
 const PERIOD_TABS = [
     { key: "todas", label: "Todas" },
-    { key: "semana", label: "Semana" },
-    { key: "mes", label: "Mês" },
+    { key: "semana", label: "Última semana" },
+    { key: "mes", label: "Último mês" },
     { key: "personalizado", label: "Período" },
 ];
 
