@@ -19,7 +19,7 @@ export default function DateRangeInput({
 }: DateRangeInputProps) {
   return (
     <div className={`grid grid-cols-2 gap-2 ${className}`}>
-      <div>
+      <div className="min-w-0">
         <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
           {fromLabel}
         </label>
@@ -30,7 +30,7 @@ export default function DateRangeInput({
           className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
-      <div>
+      <div className="min-w-0">
         <label className="text-muted-foreground text-xs uppercase tracking-widest mb-1 block">
           {toLabel}
         </label>
