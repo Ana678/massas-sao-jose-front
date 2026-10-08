@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { toDateStr, toMonthStr } from "@/lib/date";
-import { Plus, Check, Trash2, Filter, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toDateStr } from "@/lib/date";
+import { maskMoney, parseMoney } from "@/lib/masks";
+import { Plus, Check, Trash2, Filter, X, Pencil } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
@@ -9,51 +10,119 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { useExpensesList, useCreateExpense, useDeleteExpense } from "@/lib/hooks/useExpenses";
+import { useExpensesList, useCreateExpense, useUpdateExpense, useDeleteExpense, type ExpensesResponse } from "@/lib/hooks/useExpenses";
 import { useFormError } from "@/hooks/useFormError";
 import FormField from "@/components/form/FormField";
 import FormSubmitButton from "@/components/form/FormSubmitButton";
 import DateRangeInput from "@/components/form/DateRangeInput";
 import SelectField from "@/components/form/SelectField";
+import SegmentedControl from "@/components/form/SegmentedControl";
 import Section from "@/components/layout/Section";
 import LoadingState from "@/components/layout/LoadingState";
 import EmptyState from "@/components/layout/EmptyState";
 
-const defaultDateFrom = () => `${toMonthStr()}-01`;
+const PAGE_SIZE = 10;
 
 interface FormState {
     description: string;
-    value: number;
+    /** Texto mascarado ("12,50"); convertido com parseMoney no envio. */
+    value: string;
     category: string;
+    /** YYYY-MM-DD, no fuso local. */
+    date: string;
 }
-const emptyForm: FormState = { description: "", value: 0, category: "insumos" };
+const emptyForm = (): FormState => ({ description: "", value: "", category: "insumos", date: toDateStr() });
 
 type CatFilter = "todas" | string;
+type Period = "todas" | "semana" | "mes" | "personalizado";
+
+const PERIOD_TABS = [
+    { key: "todas", label: "Todas" },
+    { key: "semana", label: "Semana" },
+    { key: "mes", label: "Mês" },
+    { key: "personalizado", label: "Período" },
+];
+
+/** Hoje menos `days` dias, como YYYY-MM-DD local. */
+function daysAgo(days: number) {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return toDateStr(d);
+}
+
+/** Intervalo [de, até] em YYYY-MM-DD; string vazia = sem limite. */
+function periodRange(period: Period, customFrom: string, customTo: string): [string, string] {
+    switch (period) {
+        case "semana": return [daysAgo(6), toDateStr()];
+        case "mes": return [daysAgo(29), toDateStr()];
+        case "personalizado": return [customFrom, customTo];
+        default: return ["", ""];
+    }
+}
+
+/** Meio-dia local evita que a conversão para UTC jogue a despesa para outro dia. */
+function dateToIso(date: string) {
+    return new Date(date + "T12:00:00").toISOString();
+}
 
 export default function DespesasPage() {
 
     const { data: expenses = [], isLoading } = useExpensesList();
     const { mutate: createExpense, isPending: isCreating } = useCreateExpense();
+    const { mutate: updateExpense, isPending: isUpdating } = useUpdateExpense();
     const { mutate: deleteExpense, } = useDeleteExpense();
 
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState<FormState>(emptyForm);
+    const [editing, setEditing] = useState<ExpensesResponse | null>(null);
     const { errors, setFieldError, clearAll: clearErrors } = useFormError();
 
     const [showFilters, setShowFilters] = useState(false);
     const [catFilter, setCatFilter] = useState<CatFilter>("todas");
-    const [dateFrom, setDateFrom] = useState<string>(defaultDateFrom());
-    const [dateTo, setDateTo] = useState<string>(toDateStr());
+    const [period, setPeriod] = useState<Period>("todas");
+    const [customFrom, setCustomFrom] = useState<string>(daysAgo(29));
+    const [customTo, setCustomTo] = useState<string>(toDateStr());
+    const [page, setPage] = useState(1);
     const filterCategoryOptions = [
         { value: "todas", label: "Todas as categorias" },
         ...Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({ value: key, label })),
     ];
     const formCategoryOptions = Object.entries(EXPENSE_CATEGORIES).map(([key, label]) => ({ value: key, label }));
 
+    function closeForm() {
+        setShowForm(false);
+        setEditing(null);
+        setForm(emptyForm());
+        clearErrors();
+    }
+
+    function toggleNewForm() {
+        if (showForm && !editing) return closeForm();
+        clearErrors();
+        setEditing(null);
+        setForm(emptyForm());
+        setShowForm(true);
+    }
+
+    function startEdit(e: ExpensesResponse) {
+        clearErrors();
+        setEditing(e);
+        setForm({
+            description: e.description,
+            value: maskMoney(Number(e.value).toFixed(2)),
+            category: e.category,
+            date: toDateStr(new Date(e.createdAt)),
+        });
+        setShowForm(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
     function submit() {
+        const value = parseMoney(form.value);
         const newErrors: Record<string, string> = {};
-        if (!form.description.trim() || form.description.trim().length < 2) newErrors.description = "Descrição obrigatória (min. 2 caracteres)";
-        if (form.value <= 0) newErrors.value = "Valor obrigatório (maior que 0)";
+        if (!form.description.trim() || form.description.trim().length < 3) newErrors.description = "Descrição obrigatória (min. 3 caracteres)";
+        if (value <= 0) newErrors.value = "Valor obrigatório (maior que 0)";
+        if (!form.date) newErrors.date = "Data obrigatória";
 
         if (Object.keys(newErrors).length > 0) {
             Object.entries(newErrors).forEach(([field, message]) => {
@@ -63,17 +132,23 @@ export default function DespesasPage() {
             return;
         }
 
-        createExpense({
+        const data = {
             description: form.description.trim(),
-            value: form.value,
+            value,
             category: form.category,
-        }, {
-            onSuccess: () => {
-                setShowForm(false);
-                setForm(emptyForm);
-                clearErrors();
-            }
-        });
+        };
+
+        if (editing) {
+            // Só reenvia a data se ela mudou, para não perder o horário original.
+            const dateChanged = form.date !== toDateStr(new Date(editing.createdAt));
+            updateExpense(
+                { id: editing.id, ...data, ...(dateChanged && { date: dateToIso(form.date) }) },
+                { onSuccess: closeForm },
+            );
+            return;
+        }
+
+        createExpense({ ...data, date: dateToIso(form.date) }, { onSuccess: closeForm });
     }
 
     function handleDelete(id: string) {
@@ -82,24 +157,35 @@ export default function DespesasPage() {
 
     function resetFilters() {
         setCatFilter("todas");
-        setDateFrom(defaultDateFrom());
-        setDateTo(toDateStr());
+        setPeriod("todas");
     }
+
+    const [dateFrom, dateTo] = periodRange(period, customFrom, customTo);
 
     const filtered = useMemo(() => {
         const fromIso = dateFrom ? new Date(dateFrom + "T00:00:00").toISOString() : "";
-        const toIso = dateTo ? new Date(dateTo + "T23:59:59").toISOString() : "";
-        return expenses.filter((e) => {
-            if (catFilter !== "todas" && e.category !== catFilter) return false;
-            if (fromIso && e.createdAt < fromIso) return false;
-            if (toIso && e.createdAt > toIso) return false;
-            return true;
-        });
+        const toIso = dateTo ? new Date(dateTo + "T23:59:59.999").toISOString() : "";
+        return expenses
+            .filter((e) => {
+                if (catFilter !== "todas" && e.category !== catFilter) return false;
+                const createdIso = new Date(e.createdAt).toISOString();
+                if (fromIso && createdIso < fromIso) return false;
+                if (toIso && createdIso > toIso) return false;
+                return true;
+            })
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }, [expenses, catFilter, dateFrom, dateTo]);
 
-    const total = filtered.reduce((s, e) => s + e.value, 0);
-    const isFiltered = catFilter !== "todas" || dateFrom !== defaultDateFrom()
-        || dateTo !== toDateStr();
+    // Qualquer mudança de filtro volta para a primeira página.
+    useEffect(() => { setPage(1); }, [catFilter, dateFrom, dateTo]);
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    // Se uma exclusão esvaziar a última página, recua em vez de mostrar vazio.
+    const currentPage = Math.min(page, totalPages);
+    const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    const total = filtered.reduce((s, e) => s + Number(e.value), 0);
+    const isFiltered = catFilter !== "todas";
 
     return (
         <div className="pb-24">
@@ -120,7 +206,7 @@ export default function DespesasPage() {
                             )}
                         </button>
                         <button
-                            onClick={() => setShowForm(!showForm)}
+                            onClick={toggleNewForm}
                             className="bg-accent text-accent-foreground p-2 rounded-xl active:scale-95 transition-transform"
                             aria-label="Nova despesa"
                         >
@@ -129,6 +215,24 @@ export default function DespesasPage() {
                     </div>
                 }
             />
+
+            <Section spacing="md" className="pb-3 space-y-3">
+                <SegmentedControl
+                    tabs={PERIOD_TABS}
+                    activeKey={period}
+                    onChange={(key) => setPeriod(key as Period)}
+                />
+                {period === "personalizado" && (
+                    <DateRangeInput
+                        from={customFrom}
+                        to={customTo}
+                        onFromChange={setCustomFrom}
+                        onToChange={setCustomTo}
+                        fromLabel="De"
+                        toLabel="Até"
+                    />
+                )}
+            </Section>
 
             {showFilters && (
                 <Section spacing="md" className="pb-3">
@@ -146,15 +250,6 @@ export default function DespesasPage() {
                             onChange={(value) => setCatFilter(value as CatFilter)}
                             options={filterCategoryOptions}
                         />
-
-                        <DateRangeInput
-                            from={dateFrom}
-                            to={dateTo}
-                            onFromChange={setDateFrom}
-                            onToChange={setDateTo}
-                            fromLabel="De"
-                            toLabel="Até"
-                        />
                     </div>
                 </Section>
             )}
@@ -162,6 +257,13 @@ export default function DespesasPage() {
             {showForm && (
                 <Section className="animate-slide-up">
                     <div className="bg-card rounded-2xl p-4 border border-border space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <p className="text-foreground text-sm font-normal">{editing ? "Editar despesa" : "Nova despesa"}</p>
+                            <button onClick={closeForm} className="text-muted-foreground p-1" aria-label="Fechar">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
                         <FormField
                             label="Descrição"
                             value={form.description}
@@ -175,11 +277,20 @@ export default function DespesasPage() {
                         <FormField
                             label="Valor (R$)"
                             value={form.value}
-                            onChange={(val) => setForm((f) => ({ ...f, value: parseFloat(val as string) || 0 }))}
+                            onChange={(val) => setForm((f) => ({ ...f, value: val as string }))}
                             error={errors.value}
-                            type="number"
+                            mask={maskMoney}
                             inputMode="numeric"
-                            placeholder="0"
+                            placeholder="0,00"
+                            required
+                        />
+
+                        <FormField
+                            label="Data"
+                            value={form.date}
+                            onChange={(val) => setForm((f) => ({ ...f, date: val as string }))}
+                            error={errors.date}
+                            type="date"
                             required
                         />
 
@@ -193,12 +304,12 @@ export default function DespesasPage() {
 
                         <FormSubmitButton
                             onClick={submit}
-                            loading={isCreating}
-                            disabled={isCreating}
+                            loading={isCreating || isUpdating}
+                            disabled={isCreating || isUpdating}
                             variant="accent"
                             icon={Check}
                         >
-                            Lançar Despesa
+                            {editing ? "Salvar Alterações" : "Lançar Despesa"}
                         </FormSubmitButton>
                     </div>
                 </Section>
@@ -213,37 +324,46 @@ export default function DespesasPage() {
                     <EmptyState message="Nenhuma despesa encontrada" />
                 )}
 
-                {!isLoading && [...filtered].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((e) => (
+                {!isLoading && pageItems.map((e) => (
                     <div key={e.id} className="bg-card rounded-xl p-4 border border-border space-y-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <p className="text-foreground text-sm font-normal break-word">{e.description}</p>
                                 <p className="text-muted-foreground text-xs mt-1">{new Date(e.createdAt).toLocaleDateString("pt-BR")}</p>
                             </div>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <button className="bg-destructive/10 text-destructive p-2 rounded-lg shrink-0" aria-label="Excluir">
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Remover <strong>{e.description}</strong> ({formatCurrency(e.value)})?
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => handleDelete(e.id)}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                            Excluir
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                    onClick={() => startEdit(e)}
+                                    className="bg-muted text-foreground p-2 rounded-lg"
+                                    aria-label="Editar"
+                                >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <button className="bg-destructive/10 text-destructive p-2 rounded-lg shrink-0" aria-label="Excluir">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Excluir despesa?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                Remover <strong>{e.description}</strong> ({formatCurrency(e.value)})?
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => handleDelete(e.id)}
+                                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            >
+                                                Excluir
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </div>
                         <div className="flex flex-col gap-2 pt-3 border-t border-border">
                             <span className="text-muted-foreground text-xs">{EXPENSE_CATEGORIES[e.category as keyof typeof EXPENSE_CATEGORIES] || e.category}</span>
@@ -251,6 +371,28 @@ export default function DespesasPage() {
                         </div>
                     </div>
                 ))}
+
+                {!isLoading && totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-6 border-t border-border mt-6">
+                        <button
+                            onClick={() => setPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 text-xs border border-border rounded-xl disabled:opacity-50 transition-colors hover:bg-muted/30"
+                        >
+                            Anterior
+                        </button>
+                        <span className="text-xs text-muted-foreground font-medium">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-4 py-2 text-xs border border-border rounded-xl disabled:opacity-50 transition-colors hover:bg-muted/30"
+                        >
+                            Próximo
+                        </button>
+                    </div>
+                )}
             </Section>
         </div>
     );

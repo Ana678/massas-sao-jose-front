@@ -13,6 +13,14 @@ export interface ExpensesResponse {
 
 }
 
+export interface ExpenseInput {
+    description: string;
+    value: number;
+    category: string;
+    /** ISO 8601; se omitida, a API usa a data atual. */
+    date?: string;
+}
+
 export function useExpensesList() {
 
     return useQuery({
@@ -31,7 +39,7 @@ export function useCreateExpense() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: { description: string; value: number; category: string }) => {
+        mutationFn: async (data: ExpenseInput) => {
             const response = await api.post<ExpensesResponse>('/expenses', data);
             return response.data;
         },
@@ -44,6 +52,27 @@ export function useCreateExpense() {
             toast.error(message);
         }
 
+    });
+}
+
+
+export function useUpdateExpense() {
+
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, ...data }: Partial<ExpenseInput> & { id: string }) => {
+            const response = await api.patch<ExpensesResponse>(`/expenses/${id}`, data);
+            return response.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['expenses'] });
+            toast.success('Despesa atualizada com sucesso!');
+        },
+        onError: (error: any) => {
+            const message = error.response?.data?.message || "Erro ao atualizar despesa";
+            toast.error(message);
+        }
     });
 }
 

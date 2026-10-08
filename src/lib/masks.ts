@@ -46,3 +46,18 @@ export function parseCurrency(value: string): number {
     const d = value.replace(/\D/g, "");
     return d ? parseInt(d, 10) : 0;
 }
+
+/** Valor com centavos: os dígitos entram pela direita ("1250" → "12,50"). */
+export function maskMoney(value: string): string {
+    const d = value.replace(/\D/g, "").replace(/^0+/, "").slice(0, 11);
+    if (!d) return "";
+    return (parseInt(d, 10) / 100).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+export function parseMoney(value: string): number {
+    const d = value.replace(/\D/g, "");
+    return d ? parseInt(d, 10) / 100 : 0;
+}
