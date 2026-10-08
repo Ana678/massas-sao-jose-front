@@ -21,6 +21,7 @@ const PIE_COLORS = [
     "hsl(36, 18%, 62%)",
     "hsl(220, 50%, 25%)",
     "hsl(40, 60%, 50%)",
+    "hsl(300, 20%, 38%)",
 ];
 
 type PresetPeriod = 3 | 6 | 12 | "custom";

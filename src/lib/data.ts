@@ -23,6 +23,7 @@ export const EXPENSE_CATEGORIES = {
     salarios: 'Salários',
     combustivel: 'Combustível/Viagens',
     manutencao: 'Manutenção',
+    impostos: 'Impostos',
     outros: 'Outros',
 };
 
