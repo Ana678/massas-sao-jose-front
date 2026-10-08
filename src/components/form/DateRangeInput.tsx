@@ -6,6 +6,8 @@ interface DateRangeInputProps {
   fromLabel?: string;
   toLabel?: string;
   className?: string;
+  /** "month" para escolher só mês/ano (YYYY-MM). */
+  type?: "date" | "month";
 }
 
 export default function DateRangeInput({
@@ -15,7 +17,8 @@ export default function DateRangeInput({
   onToChange,
   fromLabel = "De",
   toLabel = "Até",
-  className = ""
+  className = "",
+  type = "date"
 }: DateRangeInputProps) {
   return (
     <div className={`grid grid-cols-2 gap-2 ${className}`}>
@@ -24,7 +27,7 @@ export default function DateRangeInput({
           {fromLabel}
         </label>
         <input
-          type="date"
+          type={type}
           value={from}
           onChange={(e) => onFromChange(e.target.value)}
           className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -35,7 +38,7 @@ export default function DateRangeInput({
           {toLabel}
         </label>
         <input
-          type="date"
+          type={type}
           value={to}
           onChange={(e) => onToChange(e.target.value)}
           className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"

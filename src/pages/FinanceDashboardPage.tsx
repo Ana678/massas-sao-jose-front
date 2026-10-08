@@ -14,6 +14,8 @@ import {
 import { tooltipCurrencyFormatter } from "@/lib/utils";
 import { useFinanceMetrics } from "@/lib/hooks/useFinance";
 import LoadingState from "@/components/layout/LoadingState";
+import SegmentedControl from "@/components/form/SegmentedControl";
+import DateRangeInput from "@/components/form/DateRangeInput";
 
 const PIE_COLORS = [
     "hsl(136, 22%, 30%)",
@@ -138,46 +140,22 @@ export default function FinanceDashboardPage() {
                 }
             />
 
-            <section className="px-6 pb-2">
-                <div className="bg-card rounded-xl p-1 border border-border flex gap-1">
-                    {PRESETS.map((p) => {
-                        const active = period === p.value;
-                        return (
-                            <button
-                                key={String(p.value)}
-                                onClick={() => setPeriod(p.value)}
-                                className={`flex-1 py-2 rounded-lg text-xs font-normal transition-colors ${active
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-foreground hover:bg-background"
-                                    }`}
-                            >
-                                {p.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
+            <section className="px-6 pb-2 space-y-3">
+                <SegmentedControl
+                    tabs={PRESETS.map((p) => ({ key: String(p.value), label: p.label }))}
+                    activeKey={String(period)}
+                    onChange={(key) => setPeriod(key === "custom" ? "custom" : (Number(key) as PresetPeriod))}
+                />
                 {period === "custom" && (
-                    <div className="mt-2 bg-card rounded-xl p-3 border border-border grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="text-muted-foreground text-[10px] uppercase tracking-widest mb-1 block">De (mês)</label>
-                            <input
-                                type="month"
-                                value={customFrom}
-                                onChange={(e) => setCustomFrom(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-muted-foreground text-[10px] uppercase tracking-widest mb-1 block">Até (mês)</label>
-                            <input
-                                type="month"
-                                value={customTo}
-                                onChange={(e) => setCustomTo(e.target.value)}
-                                className="w-full bg-background border border-border rounded-lg px-2 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            />
-                        </div>
-                    </div>
+                    <DateRangeInput
+                        type="month"
+                        from={customFrom}
+                        to={customTo}
+                        onFromChange={setCustomFrom}
+                        onToChange={setCustomTo}
+                        fromLabel="De"
+                        toLabel="Até"
+                    />
                 )}
             </section>
 

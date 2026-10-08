@@ -96,7 +96,8 @@
 
     /* No celular (principalmente iOS) o input de data tem largura mínima
        própria e ignora w-full, invadindo o campo ao lado. */
-    input[type="date"] {
+    input[type="date"],
+    input[type="month"] {
         min-width: 0;
         -webkit-appearance: none;
         appearance: none;
@@ -104,7 +105,8 @@
         min-height: 2.25rem;
     }
 
-    input[type="date"]::-webkit-date-and-time-value {
+    input[type="date"]::-webkit-date-and-time-value,
+    input[type="month"]::-webkit-date-and-time-value {
         text-align: left;
     }
 
