@@ -1,4 +1,5 @@
 import SectionLabel from "@/components/form/SectionLabel";
+import { cn } from "@/lib/utils";
 
 interface SelectOption {
     value: string;
@@ -34,7 +35,7 @@ export default function SelectField({
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className={`w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${error ? "border-destructive" : ""} ${selectClassName}`}
+                className={cn("w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30", error && "border-destructive", selectClassName)}
             >
                 {options.map((opt) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>

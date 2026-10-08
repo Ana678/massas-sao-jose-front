@@ -305,7 +305,7 @@ export default function DespesasPage() {
                         value={form.category}
                         onChange={(value) => setForm((f) => ({ ...f, category: value }))}
                         options={formCategoryOptions}
-                        selectClassName="px-4 py-3"
+                        selectClassName="px-4 py-3 bg-card"
                     />
                 </div>
             </Modal>
