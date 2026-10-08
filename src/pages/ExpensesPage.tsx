@@ -329,7 +329,7 @@ export default function DespesasPage() {
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                     onClick={() => startEdit(e)}
-                                    className="bg-blue-600/10 text-blue-700 px-3 py-2 rounded-lg"
+                                    className="bg-primary/10 text-primary px-3 py-2 rounded-lg"
                                     aria-label="Editar"
                                 >
                                     <Pencil className="w-3.5 h-3.5" />
