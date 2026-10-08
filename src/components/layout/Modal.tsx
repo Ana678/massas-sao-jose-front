@@ -26,7 +26,11 @@ export default function Modal({
     }[size];
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+        <div
+            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+            // Fecha só no clique no fundo escuro, não em cliques dentro do conteúdo.
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        >
             <div className={`w-full ${maxWidthClass} bg-background rounded-t-2xl max-h-[80vh] flex flex-col`}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                     <h3 className="font-display text-lg">{title}</h3>
