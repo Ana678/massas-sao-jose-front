@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { RouteOverride } from "./types";
 import { toDateStr, toMonthStr } from "@/lib/date";
+import { HIDDEN_VALUE, isHidingValues } from "@/lib/privacy";
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -12,6 +13,7 @@ export function formatCurrency(value?: number | string | null) {
     if (value === undefined || value === null || isNaN(num)) {
         return "R$ Error";
     }
+    if (isHidingValues()) return HIDDEN_VALUE;
 
     return num.toLocaleString("pt-BR", {
         style: "currency",

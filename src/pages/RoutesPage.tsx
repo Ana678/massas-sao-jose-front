@@ -3,7 +3,8 @@ import { toDateStr } from "@/lib/date";
 import { buildDiscount, DEFAULT_DISCOUNT_TYPE } from "@/lib/discount";
 import SearchInput from "@/components/form/SearchInput";
 
-import { Cloud, Plus, AlertCircle, ArrowRight } from "lucide-react";
+import { Cloud, Eye, EyeOff, Plus, AlertCircle, ArrowRight } from "lucide-react";
+import { toggleHideValues, useHideValues } from "@/lib/privacy";
 import { Link } from '@tanstack/react-router';
 import { toast } from "sonner";
 import Logo from "@/assets/logo.svg?react";
@@ -22,6 +23,7 @@ import { RouteOverrideModal } from "@/components/route/RouteOverrideModal";
 import { ClientRouteModal } from "@/components/route/ClientRouteModal";
 
 export default function RoutesPage() {
+    const hideValues = useHideValues();
     const today = new Date();
     const todayStr = toDateStr(today);
     const overrides = getRouteOverrides();
@@ -192,10 +194,14 @@ export default function RoutesPage() {
                     >
                         Alterar rota
                     </button>
-                    <div className="flex items-center gap-1.5 bg-card px-3 py-1.5 rounded-full border border-border">
-                        <Cloud className="w-4 h-4 text-primary" />
-                        <span className="text-xs text-primary tracking-wide font-normal">Sync Ok</span>
-                    </div>
+                    <button
+                        onClick={toggleHideValues}
+                        className="flex items-center bg-card px-3 py-1.5 rounded-full border border-border text-primary"
+                        aria-label={hideValues ? "Mostrar valores" : "Esconder valores"}
+                        aria-pressed={hideValues}
+                    >
+                        {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                 </div>
             </header>
 

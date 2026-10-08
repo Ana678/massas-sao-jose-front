@@ -1,3 +1,5 @@
+import { HIDDEN_VALUE, isHidingValues } from "@/lib/privacy";
+
 export type DiscountType = "PERCENT" | "VALUE";
 
 export const DEFAULT_DISCOUNT_TYPE: DiscountType = "VALUE";
@@ -52,6 +54,7 @@ export function formatDiscount(
 	const value = Number(discount) || 0;
 
 	if (discountType === "VALUE") {
+		if (isHidingValues()) return `-${HIDDEN_VALUE}`;
 		return `-${value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`;
 	}
 

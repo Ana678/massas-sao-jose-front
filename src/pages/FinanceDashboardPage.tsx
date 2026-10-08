@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
+import { isHidingValues } from "@/lib/privacy";
 import { exportFinancialDashboardPDF } from "@/lib/make-pdf";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ const PRESETS: { value: PresetPeriod; label: string }[] = [
 ];
 
 export default function FinanceDashboardPage() {
+    const hideValues = isHidingValues();
     const [period, setPeriod] = useState<PresetPeriod>(6);
     const todayKey = toMonthStr();
     const defaultFrom = (() => {
@@ -203,7 +205,7 @@ export default function FinanceDashboardPage() {
                                 <BarChart data={monthsData}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(36, 18%, 62%, 0.2)" vertical={false} />
                                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} width={40} />
+                                    <YAxis tick={hideValues ? false : { fontSize: 10, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} width={40} />
                                     <Tooltip
                                         formatter={tooltipCurrencyFormatter}
                                         contentStyle={{
@@ -237,7 +239,7 @@ export default function FinanceDashboardPage() {
                                 <LineChart data={monthsData}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(36, 18%, 62%, 0.2)" vertical={false} />
                                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 10, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} width={40} />
+                                    <YAxis tick={hideValues ? false : { fontSize: 10, fill: "hsl(36, 18%, 62%)" }} axisLine={false} tickLine={false} width={40} />
                                     <Tooltip
                                         formatter={tooltipCurrencyFormatter}
                                         contentStyle={{
