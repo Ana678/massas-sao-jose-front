@@ -28,6 +28,12 @@ export function formatCurrencyRaw(value?: number | string | null) {
     });
 }
 
+/** Percentual com até 1 casa: 0,4% não vira "0%" (como fazia toFixed(0)). */
+export function formatPercent(pct: number) {
+    if (pct > 0 && pct < 0.05) return "<0,1%";
+    return `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}
+
 export function getCitiesForToday(date: Date, overrides: RouteOverride[]): string[] {
     const dateStr = toDateStr(date);
 

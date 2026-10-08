@@ -3,7 +3,7 @@ import { netUnitPrice } from "@/lib/discount";
 import { isInMonth, toDateStr } from "@/lib/date";
 import autoTable from "jspdf-autotable";
 import type { Order, Expense, Client } from "./types";
-import { formatCurrencyRaw as formatCurrency } from "./utils";
+import { formatCurrencyRaw as formatCurrency, formatPercent } from "./utils";
 import logoUrl from "@/assets/logo.svg";
 
 // Cores da marca (RGB)
@@ -198,7 +198,7 @@ export async function exportMonthlyClosingPDF(
     });
     const catRows = Object.entries(byCat).map(([k, v]) => [
         k,
-        `${costs > 0 ? ((v / costs) * 100).toFixed(0) : 0}%`,
+        formatPercent(costs > 0 ? (v / costs) * 100 : 0),
         formatBRL(v),
     ]);
 
@@ -337,7 +337,7 @@ export async function exportFinancialDashboardPDF(data: FinancialPeriodData) {
     doc.text("Despesas por Categoria", 14, catStartY);
     doc.setFont("helvetica", "normal");
 
-    const catRows = data.byCategory.map((c) => [c.name, `${c.pct.toFixed(0)}%`, formatBRL(Number(c.value))]);
+    const catRows = data.byCategory.map((c) => [c.name, formatPercent(c.pct), formatBRL(Number(c.value))]);
 
     autoTable(doc, {
         startY: catStartY + 4,

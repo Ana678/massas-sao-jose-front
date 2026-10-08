@@ -3,7 +3,7 @@ import { toMonthStr } from "@/lib/date";
 import { Download } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { EXPENSE_CATEGORIES } from "@/lib/data";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPercent } from "@/lib/utils";
 import { isHidingValues } from "@/lib/privacy";
 import { exportFinancialDashboardPDF } from "@/lib/make-pdf";
 import { toast } from "sonner";
@@ -23,17 +23,6 @@ const PIE_COLORS = [
     "hsl(36, 18%, 62%)",
     "hsl(220, 50%, 25%)",
     "hsl(40, 60%, 50%)",
-    "hsl(300, 20%, 38%)",
-];
-
-// Mesma cor das fatias para o valor de cada categoria; o bege e o mostarda
-// ficam ~2:1 sobre o card, então o texto usa o mesmo tom escurecido (≥ 4,5:1, AA).
-const PIE_TEXT_COLORS = [
-    "hsl(136, 22%, 30%)",
-    "hsl(7, 58%, 42%)",
-    "hsl(36, 22%, 36%)",
-    "hsl(220, 50%, 25%)",
-    "hsl(40, 60%, 30%)",
     "hsl(300, 20%, 38%)",
 ];
 
@@ -296,7 +285,6 @@ export default function FinanceDashboardPage() {
                                     {categoryData.map((c, i) => {
                                         const pct = totalCategoryvalue > 0 ? (c.value / totalCategoryvalue) * 100 : 0;
                                         const color = PIE_COLORS[i % PIE_COLORS.length];
-                                        const textColor = PIE_TEXT_COLORS[i % PIE_TEXT_COLORS.length];
                                         return (
                                             <div key={c.key} className="flex justify-between items-center text-sm">
                                                 <div className="flex items-center gap-2">
@@ -305,9 +293,9 @@ export default function FinanceDashboardPage() {
                                                         style={{ backgroundColor: color }}
                                                     />
                                                     <span className="text-foreground">{c.name}</span>
-                                                    <span className="text-muted-foreground text-xs">({pct.toFixed(0)}%)</span>
+                                                    <span className="text-muted-foreground text-xs">({formatPercent(pct)})</span>
                                                 </div>
-                                                <span className="font-normal" style={{ color: textColor }}>{formatCurrency(c.value)}</span>
+                                                <span className="font-normal" style={{ color }}>{formatCurrency(c.value)}</span>
                                             </div>
                                         );
                                     })}
