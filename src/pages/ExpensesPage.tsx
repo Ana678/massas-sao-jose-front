@@ -51,11 +51,28 @@ function daysAgo(days: number) {
     return toDateStr(d);
 }
 
+/** Semana passada fechada: segunda a domingo da semana anterior. */
+function lastWeekRange(): [string, string] {
+    const today = new Date();
+    const daysSinceMonday = (today.getDay() + 6) % 7; // getDay: 0 = domingo
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceMonday - 7);
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+    return [toDateStr(monday), toDateStr(sunday)];
+}
+
+/** Mês passado fechado: do dia 1 ao último dia do mês anterior. */
+function lastMonthRange(): [string, string] {
+    const today = new Date();
+    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const last = new Date(today.getFullYear(), today.getMonth(), 0); // dia 0 = último do mês anterior
+    return [toDateStr(first), toDateStr(last)];
+}
+
 /** Intervalo [de, até] em YYYY-MM-DD; string vazia = sem limite. */
 function periodRange(period: Period, customFrom: string, customTo: string): [string, string] {
     switch (period) {
-        case "semana": return [daysAgo(6), toDateStr()];
-        case "mes": return [daysAgo(29), toDateStr()];
+        case "semana": return lastWeekRange();
+        case "mes": return lastMonthRange();
         case "personalizado": return [customFrom, customTo];
         default: return ["", ""];
     }
